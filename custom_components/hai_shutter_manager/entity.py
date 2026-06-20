@@ -1,0 +1,35 @@
+"""Shared base entity for HAI Shutter Manager."""
+
+from __future__ import annotations
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.device_info import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN
+from .coordinator import ShutterCoordinator
+
+
+class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
+    """Base entity tying everything to a single hub device."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name="HAI Shutter Manager",
+            manufacturer="HAI",
+            model="Shutter Manager",
+        )
+
+    def _cover_name(self, cover_id: str) -> str:
+        state = self.hass.states.get(cover_id)
+        if state is not None:
+            return state.attributes.get("friendly_name", cover_id)
+        return cover_id

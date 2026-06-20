@@ -1,0 +1,84 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HAI Shutter Manager",
+        "description": "Select the shutters to manage and configure hub settings.",
+        "data": {
+          "covers": "Shutters to manage",
+          "telegram_chat_id": "Telegram chat id",
+          "telegram_bot_token": "Telegram bot token",
+          "telegram_notify_service": "Telegram notify service (alternative)",
+          "rain_sensor": "Rain sensor (optional)",
+          "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
+          "weather_entity": "Weather entity (forecast fallback)",
+          "notify_levels": "Notification levels",
+          "hemisphere": "Hemisphere"
+        }
+      },
+      "cover": {
+        "title": "Configure {cover}",
+        "description": "Set direction and behavior for {cover}.",
+        "data": {
+          "direction": "Direction",
+          "eave_length": "Eave / awning length (cm)",
+          "window_height": "Window height (cm)",
+          "desired_temp": "Desired temperature (C)",
+          "action_delay_hours": "Delay between actions (hours)",
+          "max_moves_per_day": "Max moves per day",
+          "close_evening": "Close in the evening",
+          "open_morning": "Open in the morning",
+          "close_rain": "Close on rain"
+        }
+      }
+    },
+    "abort": {
+      "no_covers": "No cover entities were found in your Home Assistant.",
+      "no_covers_selected": "No shutters were selected."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HAI Shutter Manager settings",
+        "description": "Update hub settings and the set of managed shutters.",
+        "data": {
+          "covers": "Managed shutters",
+          "telegram_chat_id": "Telegram chat id",
+          "telegram_bot_token": "Telegram bot token",
+          "telegram_notify_service": "Telegram notify service (alternative)",
+          "rain_sensor": "Rain sensor (optional)",
+          "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
+          "weather_entity": "Weather entity (forecast fallback)",
+          "notify_levels": "Notification levels",
+          "hemisphere": "Hemisphere"
+        }
+      },
+      "cover": {
+        "title": "Configure {cover}",
+        "description": "Set direction and behavior for {cover}.",
+        "data": {
+          "direction": "Direction",
+          "eave_length": "Eave / awning length (cm)",
+          "window_height": "Window height (cm)",
+          "desired_temp": "Desired temperature (C)",
+          "action_delay_hours": "Delay between actions (hours)",
+          "max_moves_per_day": "Max moves per day",
+          "close_evening": "Close in the evening",
+          "open_morning": "Open in the morning",
+          "close_rain": "Close on rain"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "action_log": { "name": "Action log" },
+      "season": { "name": "Season" }
+    },
+    "binary_sensor": {
+      "day_night": { "name": "Daytime" },
+      "rain": { "name": "Rain" }
+    }
+  }
+}

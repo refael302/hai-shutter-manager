@@ -1,0 +1,31 @@
+set_cover_option:
+  name: Set cover option
+  description: >-
+    Update a single per-cover setting (used by the Lovelace table card to edit
+    settings inline).
+  fields:
+    cover_id:
+      name: Cover entity id
+      description: The cover entity id to update.
+      required: true
+      example: cover.living_room
+      selector:
+        entity:
+          domain: cover
+    key:
+      name: Setting key
+      description: >-
+        The setting to change (e.g. direction, eave_length, desired_temp,
+        action_delay_hours, max_moves_per_day, enabled, close_evening,
+        open_morning, close_rain).
+      required: true
+      example: desired_temp
+      selector:
+        text:
+    value:
+      name: Value
+      description: The new value for the setting.
+      required: true
+      example: "23"
+      selector:
+        text:

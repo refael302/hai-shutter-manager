@@ -1,0 +1,84 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HAI Shutter Manager",
+        "description": "בחר את התריסים לניהול והגדר את הגדרות המערכת.",
+        "data": {
+          "covers": "תריסים לניהול",
+          "telegram_chat_id": "Chat ID של טלגרם",
+          "telegram_bot_token": "טוקן בוט טלגרם",
+          "telegram_notify_service": "שירות notify של טלגרם (חלופה)",
+          "rain_sensor": "חיישן גשם (אופציונלי)",
+          "outdoor_temp_sensor": "חיישן טמפרטורה חיצונית (אופציונלי)",
+          "weather_entity": "ישות מזג אוויר (גיבוי לתחזית)",
+          "notify_levels": "רמות התראה",
+          "hemisphere": "חצי כדור"
+        }
+      },
+      "cover": {
+        "title": "הגדרת {cover}",
+        "description": "הגדר כיוון והתנהגות עבור {cover}.",
+        "data": {
+          "direction": "כיוון",
+          "eave_length": "אורך גגון (ס\"מ)",
+          "window_height": "גובה חלון (ס\"מ)",
+          "desired_temp": "טמפרטורה רצויה (C)",
+          "action_delay_hours": "השהיה בין פעולות (שעות)",
+          "max_moves_per_day": "מקסימום תנועות ביום",
+          "close_evening": "סגירה בערב",
+          "open_morning": "פתיחה בבוקר",
+          "close_rain": "סגירה בגשם"
+        }
+      }
+    },
+    "abort": {
+      "no_covers": "לא נמצאו ישויות cover ב-Home Assistant.",
+      "no_covers_selected": "לא נבחרו תריסים."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "הגדרות HAI Shutter Manager",
+        "description": "עדכן הגדרות מערכת ואת רשימת התריסים המנוהלים.",
+        "data": {
+          "covers": "תריסים מנוהלים",
+          "telegram_chat_id": "Chat ID של טלגרם",
+          "telegram_bot_token": "טוקן בוט טלגרם",
+          "telegram_notify_service": "שירות notify של טלגרם (חלופה)",
+          "rain_sensor": "חיישן גשם (אופציונלי)",
+          "outdoor_temp_sensor": "חיישן טמפרטורה חיצונית (אופציונלי)",
+          "weather_entity": "ישות מזג אוויר (גיבוי לתחזית)",
+          "notify_levels": "רמות התראה",
+          "hemisphere": "חצי כדור"
+        }
+      },
+      "cover": {
+        "title": "הגדרת {cover}",
+        "description": "הגדר כיוון והתנהגות עבור {cover}.",
+        "data": {
+          "direction": "כיוון",
+          "eave_length": "אורך גגון (ס\"מ)",
+          "window_height": "גובה חלון (ס\"מ)",
+          "desired_temp": "טמפרטורה רצויה (C)",
+          "action_delay_hours": "השהיה בין פעולות (שעות)",
+          "max_moves_per_day": "מקסימום תנועות ביום",
+          "close_evening": "סגירה בערב",
+          "open_morning": "פתיחה בבוקר",
+          "close_rain": "סגירה בגשם"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "action_log": { "name": "יומן פעולות" },
+      "season": { "name": "עונה" }
+    },
+    "binary_sensor": {
+      "day_night": { "name": "יום" },
+      "rain": { "name": "גשם" }
+    }
+  }
+}
