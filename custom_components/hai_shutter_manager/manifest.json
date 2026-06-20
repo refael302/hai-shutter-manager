@@ -1,7 +1,7 @@
 {
   "domain": "hai_shutter_manager",
   "name": "HAI Shutter Manager",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "documentation": "https://github.com/refael302/hai-shutter-manager",
   "issue_tracker": "https://github.com/refael302/hai-shutter-manager/issues",
   "codeowners": ["@refael302"],

@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_info import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, INTEGRATION_ICON
 from .coordinator import ShutterCoordinator
 
 
@@ -14,6 +14,7 @@ class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
     """Base entity tying everything to a single hub device."""
 
     _attr_has_entity_name = True
+    _attr_icon = INTEGRATION_ICON
 
     def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -26,6 +27,7 @@ class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
             name="HAI Shutter Manager",
             manufacturer="HAI",
             model="Shutter Manager",
+            configuration_url="https://github.com/refael302/hai-shutter-manager",
         )
 
     def _cover_name(self, cover_id: str) -> str:

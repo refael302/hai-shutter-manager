@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "hai_shutter_manager"
+INTEGRATION_ICON = "mdi:window-shutter-open"
 
 PLATFORMS: list[str] = ["sensor", "binary_sensor", "switch", "number", "select"]
 
