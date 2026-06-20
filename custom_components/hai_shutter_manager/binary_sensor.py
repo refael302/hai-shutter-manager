@@ -101,6 +101,8 @@ class CoverStateSensor(HaiBaseEntity, BinarySensorEntity):
             "sun_hit": snapshot.get("sun_hit"),
             "sunlit_fraction": snapshot.get("sunlit_fraction"),
             "moves_today": snapshot.get("moves_today"),
+            "test_mode": snapshot.get("test_mode", False),
+            "virtual_state": snapshot.get("virtual_state"),
         }
         attrs.update(snapshot.get("config", {}))
         return attrs

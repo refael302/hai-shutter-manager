@@ -29,3 +29,48 @@ set_cover_option:
       example: "23"
       selector:
         text:
+
+set_test_override:
+  name: Set test override
+  description: >-
+    Update a manual test input while test mode is active. Omit cover_id for
+    hub-level overrides (season, is_day, sun angles, etc.).
+  fields:
+    cover_id:
+      name: Cover entity id
+      description: Optional. Per-cover override (e.g. test_room_temp).
+      required: false
+      selector:
+        entity:
+          domain: cover
+    key:
+      name: Setting key
+      description: Config key to override.
+      required: true
+      selector:
+        text:
+    value:
+      name: Value
+      description: New value.
+      required: true
+      selector:
+        text:
+
+set_virtual_state:
+  name: Set virtual shutter state
+  description: Manually set the virtual shutter state in test mode.
+  fields:
+    cover_id:
+      name: Cover entity id
+      required: true
+      selector:
+        entity:
+          domain: cover
+    state:
+      name: State
+      required: true
+      selector:
+        select:
+          options:
+            - open
+            - closed

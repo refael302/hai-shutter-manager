@@ -32,6 +32,14 @@ from .const import (
     CONF_TELEGRAM_BOT_TOKEN,
     CONF_TELEGRAM_CHAT_ID,
     CONF_TELEGRAM_NOTIFY_SERVICE,
+    CONF_TEST_IS_DAY,
+    CONF_TEST_IS_RAINING,
+    CONF_TEST_MODE,
+    CONF_TEST_OUTDOOR_TEMP,
+    CONF_TEST_SEASON,
+    CONF_TEST_SUN_AZIMUTH,
+    CONF_TEST_SUN_ELEVATION,
+    CONF_TEST_USE_SUN_OVERRIDE,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_HEIGHT,
     CONFIG_VERSION,
@@ -43,12 +51,20 @@ from .const import (
     DEFAULT_HEMISPHERE,
     DEFAULT_MAX_MOVES_PER_DAY,
     DEFAULT_OPEN_MORNING,
+    DEFAULT_TEST_IS_DAY,
+    DEFAULT_TEST_IS_RAINING,
+    DEFAULT_TEST_MODE,
+    DEFAULT_TEST_SEASON,
+    DEFAULT_TEST_SUN_AZIMUTH,
+    DEFAULT_TEST_SUN_ELEVATION,
+    DEFAULT_TEST_USE_SUN_OVERRIDE,
     DEFAULT_WINDOW_HEIGHT,
     DIRECTIONS,
     DOMAIN,
     NOTIFY_LEVEL_OPTIONS,
     PRIORITY_EMERGENCY,
     PRIORITY_NORMAL,
+    SEASON_OPTIONS,
 )
 
 
@@ -111,6 +127,44 @@ def _hub_schema(defaults: dict[str, Any]) -> vol.Schema:
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(options=["north", "south"])
             ),
+            vol.Optional(
+                CONF_TEST_MODE,
+                default=defaults.get(CONF_TEST_MODE, DEFAULT_TEST_MODE),
+            ): bool,
+            vol.Optional(
+                CONF_TEST_IS_DAY,
+                default=defaults.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY),
+            ): bool,
+            vol.Optional(
+                CONF_TEST_IS_RAINING,
+                default=defaults.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING),
+            ): bool,
+            vol.Optional(
+                CONF_TEST_SEASON,
+                default=defaults.get(CONF_TEST_SEASON, DEFAULT_TEST_SEASON),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(options=SEASON_OPTIONS)
+            ),
+            vol.Optional(
+                CONF_TEST_OUTDOOR_TEMP,
+                default=defaults.get(CONF_TEST_OUTDOOR_TEMP, 22.0),
+            ): vol.Coerce(float),
+            vol.Optional(
+                CONF_TEST_SUN_AZIMUTH,
+                default=defaults.get(CONF_TEST_SUN_AZIMUTH, DEFAULT_TEST_SUN_AZIMUTH),
+            ): vol.Coerce(float),
+            vol.Optional(
+                CONF_TEST_SUN_ELEVATION,
+                default=defaults.get(
+                    CONF_TEST_SUN_ELEVATION, DEFAULT_TEST_SUN_ELEVATION
+                ),
+            ): vol.Coerce(float),
+            vol.Optional(
+                CONF_TEST_USE_SUN_OVERRIDE,
+                default=defaults.get(
+                    CONF_TEST_USE_SUN_OVERRIDE, DEFAULT_TEST_USE_SUN_OVERRIDE
+                ),
+            ): bool,
         }
     )
 

@@ -20,7 +20,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LogSensor(coordinator, entry), SeasonSensor(coordinator, entry)])
+    async_add_entities([LogSensor(coordinator, entry), SeasonSensor(coordinator, entry), TestModeSensor(coordinator, entry)])
 
 
 class LogSensor(HaiBaseEntity, SensorEntity):
@@ -61,3 +61,19 @@ class SeasonSensor(HaiBaseEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         return (self.coordinator.data or {}).get("season")
+
+
+class TestModeSensor(HaiBaseEntity, SensorEntity):
+    """Shows whether test mode is active."""
+
+    _attr_icon = "mdi:flask"
+    _attr_translation_key = "test_mode"
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_test_mode"
+        self._attr_name = "Test mode"
+
+    @property
+    def native_value(self) -> str:
+        return "active" if self.coordinator.test_mode else "off"

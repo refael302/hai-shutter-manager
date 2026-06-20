@@ -73,6 +73,25 @@ type: custom:hai-shutter-table-card
 | `<cover>` eave length | `number` | Awning length in cm (default 15) |
 | `<cover>` desired temp | `number` | Target room temperature |
 
+## Test mode
+
+Enable **Test mode** in the integration options to simulate decisions without
+moving real shutters:
+
+1. Open *Settings → Devices & Services → HAI Shutter Manager → Configure*.
+2. Turn on **Test mode**.
+3. Adjust manual inputs: season, day/night, rain, sun azimuth/elevation, outdoor
+   and per-cover room temperature.
+4. While test mode is active, additional entities appear (switches, numbers,
+   select) for live tweaking from the dashboard.
+5. The integration updates **virtual shutter states** and sends a **detailed
+   Telegram log** for each virtual action (and for skipped decisions).
+
+Services:
+
+- `hai_shutter_manager.set_test_override` — change a test input at runtime.
+- `hai_shutter_manager.set_virtual_state` — set a cover's virtual open/closed state.
+
 ## Versioning workflow
 
 This project follows [Semantic Versioning](https://semver.org/). On every version

@@ -47,6 +47,15 @@ from .const import (
     CONF_TELEGRAM_CHAT_ID,
     CONF_TELEGRAM_NOTIFY_SERVICE,
     CONF_TEMP_SENSOR,
+    CONF_TEST_IS_DAY,
+    CONF_TEST_IS_RAINING,
+    CONF_TEST_MODE,
+    CONF_TEST_OUTDOOR_TEMP,
+    CONF_TEST_ROOM_TEMP,
+    CONF_TEST_SEASON,
+    CONF_TEST_SUN_AZIMUTH,
+    CONF_TEST_SUN_ELEVATION,
+    CONF_TEST_USE_SUN_OVERRIDE,
     CONF_WEATHER_ENTITY,
     CONF_WINDOW_HEIGHT,
     DEFAULT_ACTION_DELAY,
@@ -59,6 +68,13 @@ from .const import (
     DEFAULT_HEMISPHERE,
     DEFAULT_MAX_MOVES_PER_DAY,
     DEFAULT_OPEN_MORNING,
+    DEFAULT_TEST_IS_DAY,
+    DEFAULT_TEST_IS_RAINING,
+    DEFAULT_TEST_MODE,
+    DEFAULT_TEST_SEASON,
+    DEFAULT_TEST_SUN_AZIMUTH,
+    DEFAULT_TEST_SUN_ELEVATION,
+    DEFAULT_TEST_USE_SUN_OVERRIDE,
     DEFAULT_WINDOW_HEIGHT,
     DIRECTIONS,
     DOMAIN,
@@ -73,7 +89,8 @@ from .const import (
 from .engine import decide_target
 from .notify import TelegramNotifier
 from .season import current_season
-from .sun_calc import evaluate_window, forecast_window_hits
+from .sun_calc import evaluate_window, evaluate_window_from_sun, forecast_window_hits
+from .test_mode import format_test_action_log, format_test_skip_log
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -152,6 +169,22 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 CONF_NOTIFY_LEVELS, [PRIORITY_NORMAL, PRIORITY_EMERGENCY]
             ),
             CONF_HEMISPHERE: data.get(CONF_HEMISPHERE, DEFAULT_HEMISPHERE),
+            CONF_TEST_MODE: data.get(CONF_TEST_MODE, DEFAULT_TEST_MODE),
+            CONF_TEST_IS_DAY: data.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY),
+            CONF_TEST_IS_RAINING: data.get(
+                CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING
+            ),
+            CONF_TEST_SEASON: data.get(CONF_TEST_SEASON, DEFAULT_TEST_SEASON),
+            CONF_TEST_OUTDOOR_TEMP: data.get(CONF_TEST_OUTDOOR_TEMP),
+            CONF_TEST_SUN_AZIMUTH: data.get(
+                CONF_TEST_SUN_AZIMUTH, DEFAULT_TEST_SUN_AZIMUTH
+            ),
+            CONF_TEST_SUN_ELEVATION: data.get(
+                CONF_TEST_SUN_ELEVATION, DEFAULT_TEST_SUN_ELEVATION
+            ),
+            CONF_TEST_USE_SUN_OVERRIDE: data.get(
+                CONF_TEST_USE_SUN_OVERRIDE, DEFAULT_TEST_USE_SUN_OVERRIDE
+            ),
         }
         # Hub-level overrides from options.
         for key in list(self._hub):
@@ -177,15 +210,32 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             bot_token=self._hub[CONF_TELEGRAM_BOT_TOKEN],
             notify_service=self._hub[CONF_TELEGRAM_NOTIFY_SERVICE],
             levels=self._hub[CONF_NOTIFY_LEVELS],
+            test_mode=bool(self._hub.get(CONF_TEST_MODE)),
         )
 
+        self._init_virtual_states()
         self._resubscribe()
+
+    def _init_virtual_states(self) -> None:
+        """Ensure each cover has a virtual state when test mode is active."""
+        if not self.test_mode:
+            return
+        for cover_id in self._covers:
+            runtime = self._runtime.setdefault(cover_id, {})
+            if "virtual_state" not in runtime:
+                state = self.hass.states.get(cover_id)
+                if state and state.state in (TARGET_OPEN, TARGET_CLOSED):
+                    runtime["virtual_state"] = state.state
+                else:
+                    runtime["virtual_state"] = TARGET_CLOSED
 
     def _resubscribe(self) -> None:
         """Track state changes of the managed covers for manual-override detection."""
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
+        if self.test_mode:
+            return
         if self._covers:
             self._unsub_state = async_track_state_change_event(
                 self.hass, list(self._covers), self._handle_cover_state_change
@@ -207,6 +257,10 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def hub(self) -> dict[str, Any]:
         return self._hub
 
+    @property
+    def test_mode(self) -> bool:
+        return bool(self._hub.get(CONF_TEST_MODE))
+
     def has_cover(self, cover_id: str) -> bool:
         return cover_id in self._covers
 
@@ -223,6 +277,45 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         options[CONF_COVERS] = covers
         self.hass.config_entries.async_update_entry(self.entry, options=options)
 
+    async def async_set_hub_option(self, key: str, value: Any) -> None:
+        """Persist a hub-level option (test overrides, etc.)."""
+        options = dict(self.entry.options)
+        options[key] = value
+        self.hass.config_entries.async_update_entry(self.entry, options=options)
+
+    async def async_set_virtual_state(self, cover_id: str, state: str) -> None:
+        """Manually set a cover's virtual state in test mode."""
+        if not self.test_mode or cover_id not in self._covers:
+            return
+        if state not in (TARGET_OPEN, TARGET_CLOSED):
+            return
+        runtime = self._runtime.setdefault(cover_id, {})
+        runtime["virtual_state"] = state
+        await self.async_request_refresh()
+
+    def _cover_state(self, cover_id: str) -> str | None:
+        """Return effective state (virtual in test mode, real otherwise)."""
+        if self.test_mode:
+            runtime = self._runtime.get(cover_id, {})
+            return runtime.get("virtual_state")
+        state = self.hass.states.get(cover_id)
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None
+        return state.state
+
+    def _friendly_name(self, cover_id: str) -> str:
+        state = self.hass.states.get(cover_id)
+        if state is not None:
+            return state.attributes.get("friendly_name", cover_id)
+        return cover_id
+
+    def _test_overrides_snapshot(self) -> dict[str, Any]:
+        return {
+            "outdoor_temp": self._hub.get(CONF_TEST_OUTDOOR_TEMP),
+            "sun_azimuth": self._hub.get(CONF_TEST_SUN_AZIMUTH),
+            "sun_elevation": self._hub.get(CONF_TEST_SUN_ELEVATION),
+        }
+
     # ------------------------------------------------------------------
     # Environment helpers used by the engine
     # ------------------------------------------------------------------
@@ -230,18 +323,39 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return float(DIRECTIONS.get(cfg.get(CONF_DIRECTION, "S"), 180))
 
     def sun_hits_now(self, cover_id: str, cfg: dict[str, Any]) -> bool:
-        result = evaluate_window(
-            self.observer,
-            dt_util.utcnow(),
-            self._window_azimuth(cfg),
-            float(cfg.get(CONF_EAVE_LENGTH, DEFAULT_EAVE_LENGTH)),
-            float(cfg.get(CONF_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT)),
-            float(cfg.get(CONF_FOV, DEFAULT_FOV)),
-        )
+        eave = float(cfg.get(CONF_EAVE_LENGTH, DEFAULT_EAVE_LENGTH))
+        height = float(cfg.get(CONF_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT))
+        fov = float(cfg.get(CONF_FOV, DEFAULT_FOV))
+        window_az = self._window_azimuth(cfg)
+
+        if self.test_mode and self._hub.get(CONF_TEST_USE_SUN_OVERRIDE):
+            result = evaluate_window_from_sun(
+                float(self._hub.get(CONF_TEST_SUN_AZIMUTH, DEFAULT_TEST_SUN_AZIMUTH)),
+                float(
+                    self._hub.get(CONF_TEST_SUN_ELEVATION, DEFAULT_TEST_SUN_ELEVATION)
+                ),
+                window_az,
+                eave,
+                height,
+                fov,
+            )
+        else:
+            result = evaluate_window(
+                self.observer,
+                dt_util.utcnow(),
+                window_az,
+                eave,
+                height,
+                fov,
+            )
+        self._runtime[cover_id]["sun_azimuth"] = result.azimuth
+        self._runtime[cover_id]["sun_elevation"] = result.elevation
         self._runtime[cover_id]["sunlit_fraction"] = result.sunlit_fraction
         return result.hits
 
     def sun_hits_soon(self, cover_id: str, cfg: dict[str, Any]) -> bool:
+        if self.test_mode and self._hub.get(CONF_TEST_USE_SUN_OVERRIDE):
+            return self.sun_hits_now(cover_id, cfg)
         hits = forecast_window_hits(
             self.observer,
             dt_util.utcnow(),
@@ -299,6 +413,20 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_area_temp(self, cover_id: str, cfg: dict[str, Any]) -> float | None:
         """Best-effort room temperature for a cover's area."""
+        if self.test_mode:
+            test_room = cfg.get(CONF_TEST_ROOM_TEMP)
+            if test_room is not None:
+                try:
+                    return float(test_room)
+                except (ValueError, TypeError):
+                    pass
+            hub_temp = self._hub.get(CONF_TEST_OUTDOOR_TEMP)
+            if hub_temp is not None:
+                try:
+                    return float(hub_temp)
+                except (ValueError, TypeError):
+                    pass
+
         explicit = cfg.get(CONF_TEMP_SENSOR)
         value = self._read_float_state(explicit)
         if value is not None:
@@ -331,6 +459,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
 
     def _compute_is_day(self) -> bool:
+        if self.test_mode:
+            return bool(self._hub.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY))
         sun = self.hass.states.get("sun.sun")
         if sun is not None:
             return sun.state == "above_horizon"
@@ -338,6 +468,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return result.elevation > 0
 
     def _compute_is_raining(self) -> bool:
+        if self.test_mode:
+            return bool(self._hub.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING))
         rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
         if rain_sensor:
             state = self.hass.states.get(rain_sensor)
@@ -406,17 +538,23 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         now = dt_util.utcnow()
         local_now = dt_util.now()
 
-        self.season = current_season(local_now, self._hub.get(CONF_HEMISPHERE))
+        if self.test_mode and self._hub.get(CONF_TEST_SEASON):
+            self.season = str(self._hub[CONF_TEST_SEASON])
+        else:
+            self.season = current_season(local_now, self._hub.get(CONF_HEMISPHERE))
         self.is_day = self._compute_is_day()
         self.is_raining = self._compute_is_raining()
 
         covers_snapshot: dict[str, Any] = {}
         for cover_id, cfg in self._covers.items():
+            runtime = self._runtime.setdefault(cover_id, {})
+            runtime.pop("last_skip_log", None)
             covers_snapshot[cover_id] = await self._evaluate_cover(
                 cover_id, cfg, now
             )
 
         return {
+            "test_mode": self.test_mode,
             "season": self.season,
             "is_day": self.is_day,
             "is_raining": self.is_raining,
@@ -428,11 +566,12 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, cover_id: str, cfg: dict[str, Any], now: datetime
     ) -> dict[str, Any]:
         runtime = self._runtime.setdefault(cover_id, {})
-        state = self.hass.states.get(cover_id)
+        effective_state = self._cover_state(cover_id)
 
         snapshot: dict[str, Any] = {
             "config": cfg,
-            "state": None,
+            "state": effective_state,
+            "virtual_state": runtime.get("virtual_state") if self.test_mode else None,
             "available": False,
             "target": None,
             "reason": "",
@@ -440,19 +579,32 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_action": _iso(runtime.get("last_action_time")),
             "sun_hit": False,
             "moves_today": runtime.get("moves_today", 0),
+            "test_mode": self.test_mode,
         }
 
-        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            await self._notify_unavailable(cover_id, runtime, now)
-            return snapshot
-
-        # Device became available again; reset the unavailable flag.
-        runtime.pop("unavailable_since", None)
-        snapshot["available"] = True
-        snapshot["state"] = state.state
+        if self.test_mode:
+            runtime.pop("unavailable_since", None)
+            snapshot["available"] = True
+            if effective_state is None:
+                runtime["virtual_state"] = TARGET_CLOSED
+                effective_state = TARGET_CLOSED
+                snapshot["state"] = effective_state
+        else:
+            state = self.hass.states.get(cover_id)
+            if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+                await self._notify_unavailable(cover_id, runtime, now)
+                return snapshot
+            runtime.pop("unavailable_since", None)
+            snapshot["available"] = True
+            snapshot["state"] = state.state
+            effective_state = state.state
 
         if not cfg.get(CONF_ENABLED, True):
             snapshot["reason"] = "automation disabled"
+            if self.test_mode:
+                await self._maybe_test_skip_log(
+                    cover_id, cfg, snapshot, effective_state, "automation disabled"
+                )
             return snapshot
 
         # Reset the daily move counter at midnight.
@@ -478,19 +630,37 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         snapshot["reason"] = decision.reason
 
         if decision.target is None:
+            if self.test_mode:
+                await self._maybe_test_skip_log(
+                    cover_id, cfg, snapshot, effective_state, decision.reason
+                )
             return snapshot
 
         # Idempotency: do not command if already in the desired state.
-        if state.state == decision.target:
+        if effective_state == decision.target:
+            if self.test_mode:
+                await self._maybe_test_skip_log(
+                    cover_id,
+                    cfg,
+                    snapshot,
+                    effective_state,
+                    f"already {decision.target}",
+                )
             return snapshot
 
         # Daily move limit guard (motor protection).
         max_moves = int(cfg.get(CONF_MAX_MOVES_PER_DAY, DEFAULT_MAX_MOVES_PER_DAY))
         if runtime.get("moves_today", 0) >= max_moves:
             snapshot["reason"] = f"daily move limit reached ({max_moves})"
+            if self.test_mode:
+                await self._maybe_test_skip_log(
+                    cover_id, cfg, snapshot, effective_state, snapshot["reason"]
+                )
             return snapshot
 
-        await self._command_cover(cover_id, decision.target, decision.reason, runtime, now)
+        await self._command_cover(
+            cover_id, decision.target, decision.reason, runtime, now, cfg, snapshot
+        )
         snapshot["last_action"] = _iso(runtime.get("last_action_time"))
         snapshot["moves_today"] = runtime.get("moves_today", 0)
         return snapshot
@@ -518,7 +688,43 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         reason: str,
         runtime: dict[str, Any],
         now: datetime,
+        cfg: dict[str, Any] | None = None,
+        snapshot: dict[str, Any] | None = None,
     ) -> None:
+        previous = self._cover_state(cover_id)
+
+        if self.test_mode:
+            runtime["virtual_state"] = target
+            runtime["commanded_state"] = target
+            runtime["last_action_time"] = now
+            runtime["moves_today"] = runtime.get("moves_today", 0) + 1
+            runtime[ATTR_LAST_REASON] = reason
+            self._add_log(cover_id, f"[TEST virtual] {target} ({reason})", reason)
+
+            message = format_test_action_log(
+                cover_id,
+                self._friendly_name(cover_id),
+                action=target,
+                reason=reason,
+                previous_state=previous,
+                virtual_state=target,
+                season=self.season,
+                is_day=self.is_day,
+                is_raining=self.is_raining,
+                sun_hit=bool(snapshot and snapshot.get("sun_hit")),
+                sunlit_fraction=float(
+                    runtime.get("sunlit_fraction", 0.0)
+                ),
+                sun_azimuth=runtime.get("sun_azimuth"),
+                sun_elevation=runtime.get("sun_elevation"),
+                room_temp=self.get_area_temp(cover_id, cfg or {}),
+                cfg=cfg or self.cover_config(cover_id),
+                moves_today=runtime.get("moves_today", 0),
+                test_overrides=self._test_overrides_snapshot(),
+            )
+            await self.notifier.async_send_test_log(message)
+            return
+
         service = SERVICE_OPEN_COVER if target == TARGET_OPEN else SERVICE_CLOSE_COVER
         try:
             await self.hass.services.async_call(
@@ -565,6 +771,35 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
         self._log.insert(0, entry)
         del self._log[MAX_LOG_ENTRIES:]
+
+    async def _maybe_test_skip_log(
+        self,
+        cover_id: str,
+        cfg: dict[str, Any],
+        snapshot: dict[str, Any],
+        effective_state: str | None,
+        reason: str,
+    ) -> None:
+        """Send a detailed skip log in test mode (once per reason per cycle)."""
+        if not self.test_mode:
+            return
+        runtime = self._runtime.get(cover_id, {})
+        skip_key = f"skip:{reason}:{snapshot.get('target')}"
+        if runtime.get("last_skip_log") == skip_key:
+            return
+        runtime["last_skip_log"] = skip_key
+        message = format_test_skip_log(
+            cover_id,
+            self._friendly_name(cover_id),
+            reason=reason,
+            virtual_state=effective_state,
+            season=self.season,
+            is_day=self.is_day,
+            is_raining=self.is_raining,
+            sun_hit=bool(snapshot.get("sun_hit")),
+            target=snapshot.get("target"),
+        )
+        await self.notifier.async_send_test_log(message)
 
 
 def _iso(value: datetime | None) -> str | None:

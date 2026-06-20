@@ -13,7 +13,15 @@
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "weather_entity": "Weather entity (forecast fallback)",
           "notify_levels": "Notification levels",
-          "hemisphere": "Hemisphere"
+          "hemisphere": "Hemisphere",
+          "test_mode": "Test mode (virtual shutters, no real moves)",
+          "test_is_day": "Test: daytime",
+          "test_is_raining": "Test: raining",
+          "test_season": "Test: season",
+          "test_outdoor_temp": "Test: outdoor temperature",
+          "test_sun_azimuth": "Test: sun azimuth (degrees)",
+          "test_sun_elevation": "Test: sun elevation (degrees)",
+          "test_use_sun_override": "Test: use manual sun angles"
         }
       },
       "cover": {
@@ -51,7 +59,15 @@
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "weather_entity": "Weather entity (forecast fallback)",
           "notify_levels": "Notification levels",
-          "hemisphere": "Hemisphere"
+          "hemisphere": "Hemisphere",
+          "test_mode": "Test mode (virtual shutters, no real moves)",
+          "test_is_day": "Test: daytime",
+          "test_is_raining": "Test: raining",
+          "test_season": "Test: season",
+          "test_outdoor_temp": "Test: outdoor temperature",
+          "test_sun_azimuth": "Test: sun azimuth (degrees)",
+          "test_sun_elevation": "Test: sun elevation (degrees)",
+          "test_use_sun_override": "Test: use manual sun angles"
         }
       },
       "cover": {
@@ -74,11 +90,20 @@
   "entity": {
     "sensor": {
       "action_log": { "name": "Action log" },
-      "season": { "name": "Season" }
+      "season": { "name": "Season" },
+      "test_mode": { "name": "Test mode" }
     },
     "binary_sensor": {
       "day_night": { "name": "Daytime" },
       "rain": { "name": "Rain" }
+    },
+    "select": {
+      "test_season": { "name": "Test season override" }
+    },
+    "switch": {
+      "test_is_day": { "name": "Test daytime override" },
+      "test_is_raining": { "name": "Test rain override" },
+      "test_use_sun_override": { "name": "Test manual sun angles" }
     }
   }
 }

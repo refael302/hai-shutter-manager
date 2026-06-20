@@ -10,6 +10,7 @@ const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const COLUMNS = [
   { key: "name", label: "Shutter", type: "name" },
   { key: "state", label: "State", type: "state" },
+  { key: "virtual_state", label: "Virtual", type: "virtual" },
   { key: "direction", label: "Direction", type: "select", options: DIRECTIONS },
   { key: "close_evening", label: "Evening close", type: "bool" },
   { key: "open_morning", label: "Morning open", type: "bool" },
@@ -70,6 +71,10 @@ class HaiShutterTableCard extends HTMLElement {
       const badge = a.available === false ? "unavailable" : open ? "open" : "closed";
       return `<td class="state ${badge}" title="${this._esc(txt)}">${badge}</td>`;
     }
+    if (col.type === "virtual") {
+      if (!a.test_mode) return `<td class="virtual">-</td>`;
+      return `<td class="virtual">${this._esc(a.virtual_state || "-")}</td>`;
+    }
     if (col.type === "bool") {
       const on = a[col.key] === true || a[col.key] === "true";
       return `<td class="bool" data-cover="${coverId}" data-key="${col.key}" data-val="${on}">${
@@ -121,13 +126,18 @@ class HaiShutterTableCard extends HTMLElement {
       .join("");
 
     const title = this._config.title || "Shutter Manager";
+    const testActive = rows.some((r) => r.attrs.test_mode);
     const empty = rows.length
       ? ""
       : `<div class="empty">No managed shutters found. Add some via the integration options.</div>`;
+    const testBanner = testActive
+      ? `<div class="test-banner">TEST MODE — virtual shutters only, detailed logs to Telegram</div>`
+      : "";
 
     this.innerHTML = `
       <ha-card header="${this._esc(title)}">
         <div class="wrap">
+          ${testBanner}
           ${empty}
           <table>
             <thead><tr>${header}</tr></thead>
@@ -147,6 +157,15 @@ class HaiShutterTableCard extends HTMLElement {
         td.state.unavailable { color: var(--error-color, #c62828); }
         input.num { width: 64px; text-align: center; }
         .empty { padding: 12px; color: var(--secondary-text-color); }
+        .test-banner {
+          background: var(--warning-color, #f9a825);
+          color: #000;
+          padding: 8px 12px;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          font-weight: 600;
+        }
+        td.virtual { font-style: italic; color: var(--primary-color); }
       </style>
     `;
 

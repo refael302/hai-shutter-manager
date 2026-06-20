@@ -15,6 +15,8 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_SET_COVER_OPTION,
+    SERVICE_SET_TEST_OVERRIDE,
+    SERVICE_SET_VIRTUAL_STATE,
 )
 from .coordinator import ShutterCoordinator
 
@@ -25,6 +27,21 @@ _SET_OPTION_SCHEMA = vol.Schema(
         vol.Required("cover_id"): cv.string,
         vol.Required("key"): cv.string,
         vol.Required("value"): vol.Any(cv.string, vol.Coerce(float), cv.boolean),
+    }
+)
+
+_SET_TEST_OVERRIDE_SCHEMA = vol.Schema(
+    {
+        vol.Optional("cover_id"): cv.string,
+        vol.Required("key"): cv.string,
+        vol.Required("value"): vol.Any(cv.string, vol.Coerce(float), cv.boolean),
+    }
+)
+
+_SET_VIRTUAL_STATE_SCHEMA = vol.Schema(
+    {
+        vol.Required("cover_id"): cv.string,
+        vol.Required("state"): vol.In(["open", "closed"]),
     }
 )
 
@@ -59,6 +76,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.async_shutdown()
         if not hass.data[DOMAIN]:
             hass.services.async_remove(DOMAIN, SERVICE_SET_COVER_OPTION)
+            hass.services.async_remove(DOMAIN, SERVICE_SET_TEST_OVERRIDE)
+            hass.services.async_remove(DOMAIN, SERVICE_SET_VIRTUAL_STATE)
     return unload_ok
 
 
@@ -88,9 +107,52 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 return
         _LOGGER.warning("set_cover_option: unknown cover %s", cover_id)
 
+    async def _handle_set_test_override(call: ServiceCall) -> None:
+        cover_id = call.data.get("cover_id")
+        key = call.data["key"]
+        value = call.data["value"]
+        for coordinator in hass.data.get(DOMAIN, {}).values():
+            if not isinstance(coordinator, ShutterCoordinator):
+                continue
+            if not coordinator.test_mode:
+                _LOGGER.warning("set_test_override ignored: test mode is off")
+                return
+            if cover_id:
+                if coordinator.has_cover(cover_id):
+                    await coordinator.async_set_cover_option(cover_id, key, value)
+                    await coordinator.async_request_refresh()
+                return
+            await coordinator.async_set_hub_option(key, value)
+            await coordinator.async_request_refresh()
+            return
+        _LOGGER.warning("set_test_override: no coordinator found")
+
+    async def _handle_set_virtual_state(call: ServiceCall) -> None:
+        cover_id = call.data["cover_id"]
+        state = call.data["state"]
+        for coordinator in hass.data.get(DOMAIN, {}).values():
+            if isinstance(coordinator, ShutterCoordinator) and coordinator.has_cover(
+                cover_id
+            ):
+                await coordinator.async_set_virtual_state(cover_id, state)
+                return
+        _LOGGER.warning("set_virtual_state: unknown cover %s", cover_id)
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_SET_COVER_OPTION,
         _handle_set_cover_option,
         schema=_SET_OPTION_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_TEST_OVERRIDE,
+        _handle_set_test_override,
+        schema=_SET_TEST_OVERRIDE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_VIRTUAL_STATE,
+        _handle_set_virtual_state,
+        schema=_SET_VIRTUAL_STATE_SCHEMA,
     )

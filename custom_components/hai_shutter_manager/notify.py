@@ -41,6 +41,7 @@ class TelegramNotifier:
         self._bot_token: str | None = None
         self._notify_service: str | None = None
         self._levels: set[str] = {PRIORITY_NORMAL, PRIORITY_EMERGENCY}
+        self._test_mode: bool = False
         # message-hash -> last sent time, for de-duplication
         self._recent: dict[str, datetime] = {}
         # timestamps of sent messages, for rate-limiting
@@ -53,13 +54,22 @@ class TelegramNotifier:
         bot_token: str | None,
         notify_service: str | None,
         levels: list[str] | None,
+        test_mode: bool = False,
     ) -> None:
         """Update notifier settings from config."""
         self._chat_id = chat_id or None
         self._bot_token = bot_token or None
         self._notify_service = notify_service or None
+        self._test_mode = test_mode
         if levels:
             self._levels = set(levels)
+
+    async def async_send_test_log(self, message: str) -> bool:
+        """Send a detailed test-mode log; relaxed dedup/rate limits."""
+        if not self._allowed(PRIORITY_NORMAL):
+            return False
+        text = message
+        return await self._dispatch(text)
 
     def _allowed(self, priority: str) -> bool:
         return priority in self._levels

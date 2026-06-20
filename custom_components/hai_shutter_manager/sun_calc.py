@@ -42,6 +42,31 @@ def sun_position(observer: Observer, when: datetime) -> tuple[float, float]:
     return astral_azimuth(observer, when), astral_elevation(observer, when)
 
 
+def evaluate_window_from_sun(
+    sun_azimuth: float,
+    sun_elevation: float,
+    window_azimuth: float,
+    eave_length_cm: float,
+    window_height_cm: float,
+    fov_deg: float,
+) -> SunHit:
+    """Evaluate sun incidence using manually supplied sun angles (test mode)."""
+    az, el = sun_azimuth, sun_elevation
+
+    if el <= 0:
+        return SunHit(False, az, el, 0.0)
+
+    if angular_difference(az, window_azimuth) > fov_deg / 2:
+        return SunHit(False, az, el, 0.0)
+
+    shadow_drop = eave_length_cm * math.tan(math.radians(el))
+    if shadow_drop >= window_height_cm:
+        return SunHit(False, az, el, 0.0)
+
+    sunlit_fraction = max(0.0, 1.0 - shadow_drop / window_height_cm)
+    return SunHit(sunlit_fraction > 0.0, az, el, sunlit_fraction)
+
+
 def evaluate_window(
     observer: Observer,
     when: datetime,
