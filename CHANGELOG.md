@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-06-22
+
+### Changed
+
+- **Hemisphere** config option removed — season is derived automatically from
+  latitude.
+- **Location** config option added (optional). Defaults to the Home Assistant
+  home location for sun calculations, Open-Meteo forecast, and season detection.
+  Leave unchanged to keep following the HA home coordinates.
+
 ## [0.4.1] - 2026-06-22
 
 ### Changed

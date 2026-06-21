@@ -12,7 +12,7 @@
           "rain_sensor": "Rain sensor (optional)",
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "notify_levels": "Notification levels",
-          "hemisphere": "Hemisphere",
+          "location": "Location (defaults to Home Assistant home)",
           "test_mode": "Test mode (virtual shutters, no real moves)"
         }
       },
@@ -50,7 +50,7 @@
           "rain_sensor": "Rain sensor (optional)",
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "notify_levels": "Notification levels",
-          "hemisphere": "Hemisphere",
+          "location": "Location (defaults to Home Assistant home)",
           "test_mode": "Test mode (virtual shutters, no real moves)"
         }
       },

@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .const import (
-    DEFAULT_HEMISPHERE,
-    SEASON_SUMMER,
-    SEASON_TRANSITION,
-    SEASON_WINTER,
-)
+from .const import SEASON_SUMMER, SEASON_TRANSITION, SEASON_WINTER
 
 # Month -> season for the northern hemisphere.
 _NORTH = {
@@ -40,7 +35,7 @@ _SOUTH = {
 }
 
 
-def current_season(now: datetime, hemisphere: str = DEFAULT_HEMISPHERE) -> str:
+def current_season(now: datetime, latitude: float) -> str:
     """Return the meteorological season for the given datetime."""
-    table = _SOUTH if hemisphere == "south" else _NORTH
+    table = _SOUTH if latitude < 0 else _NORTH
     return table[now.month]

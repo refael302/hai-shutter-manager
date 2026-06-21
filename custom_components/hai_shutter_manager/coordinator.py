@@ -37,7 +37,6 @@ from .const import (
     CONF_EAVE_LENGTH,
     CONF_ENABLED,
     CONF_FOV,
-    CONF_HEMISPHERE,
     CONF_MAX_MOVES_PER_DAY,
     CONF_NOTIFY_LEVELS,
     CONF_OPEN_MORNING,
@@ -64,7 +63,6 @@ from .const import (
     DEFAULT_EAVE_LENGTH,
     DEFAULT_ENABLED,
     DEFAULT_FOV,
-    DEFAULT_HEMISPHERE,
     DEFAULT_MAX_MOVES_PER_DAY,
     DEFAULT_OPEN_MORNING,
     DEFAULT_TEST_IS_DAY,
@@ -88,6 +86,7 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .engine import decide_target
+from .location import resolve_location
 from .notify import TelegramNotifier
 from .open_meteo import OpenMeteoClient, OpenMeteoSnapshot
 from .season import current_season
@@ -123,8 +122,10 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=UPDATE_INTERVAL,
         )
         self.entry = entry
+        self._latitude = hass.config.latitude
+        self._longitude = hass.config.longitude
         self.observer = Observer(
-            latitude=hass.config.latitude, longitude=hass.config.longitude
+            latitude=self._latitude, longitude=self._longitude
         )
         self.notifier = TelegramNotifier(hass)
         self._open_meteo = OpenMeteoClient(hass)
@@ -167,7 +168,6 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             CONF_NOTIFY_LEVELS: data.get(
                 CONF_NOTIFY_LEVELS, [PRIORITY_NORMAL, PRIORITY_EMERGENCY]
             ),
-            CONF_HEMISPHERE: data.get(CONF_HEMISPHERE, DEFAULT_HEMISPHERE),
             CONF_TEST_MODE: data.get(CONF_TEST_MODE, DEFAULT_TEST_MODE),
             CONF_TEST_IS_DAY: data.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY),
             CONF_TEST_IS_RAINING: data.get(
@@ -189,6 +189,13 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for key in list(self._hub):
             if key in options:
                 self._hub[key] = options[key]
+
+        self._latitude, self._longitude = resolve_location(
+            self.hass, data, options
+        )
+        self.observer = Observer(
+            latitude=self._latitude, longitude=self._longitude
+        )
 
         data_covers: dict[str, Any] = data.get(CONF_COVERS, {})
         option_covers: dict[str, Any] = options.get(CONF_COVERS, {})
@@ -454,12 +461,12 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self._open_meteo_data.temperature_c
 
     async def _refresh_open_meteo(self) -> None:
-        """Fetch the latest Open-Meteo forecast for the HA home location."""
+        """Fetch the latest Open-Meteo forecast for the configured location."""
         if self.test_mode:
             return
         self._open_meteo_data = await self._open_meteo.async_fetch(
-            self.hass.config.latitude,
-            self.hass.config.longitude,
+            self._latitude,
+            self._longitude,
         )
 
     def _compute_is_day(self) -> bool:
@@ -599,7 +606,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.test_mode and self._hub.get(CONF_TEST_SEASON):
             self.season = str(self._hub[CONF_TEST_SEASON])
         else:
-            self.season = current_season(local_now, self._hub.get(CONF_HEMISPHERE))
+            self.season = current_season(local_now, self._latitude)
         self.is_day = self._compute_is_day()
         self._update_rain_tracking(now)
 

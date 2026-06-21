@@ -23,7 +23,7 @@ from .const import (
     CONF_DESIRED_TEMP,
     CONF_DIRECTION,
     CONF_EAVE_LENGTH,
-    CONF_HEMISPHERE,
+    CONF_LOCATION,
     CONF_MAX_MOVES_PER_DAY,
     CONF_NOTIFY_LEVELS,
     CONF_OPEN_MORNING,
@@ -40,7 +40,6 @@ from .const import (
     DEFAULT_CLOSE_RAIN,
     DEFAULT_DESIRED_TEMP,
     DEFAULT_EAVE_LENGTH,
-    DEFAULT_HEMISPHERE,
     DEFAULT_MAX_MOVES_PER_DAY,
     DEFAULT_OPEN_MORNING,
     DEFAULT_TEST_MODE,
@@ -51,6 +50,7 @@ from .const import (
     PRIORITY_EMERGENCY,
     PRIORITY_NORMAL,
 )
+from .location import location_form_default, normalize_location
 
 
 def _available_covers(hass) -> dict[str, str]:
@@ -63,7 +63,7 @@ def _available_covers(hass) -> dict[str, str]:
     return result
 
 
-def _hub_schema(defaults: dict[str, Any]) -> vol.Schema:
+def _hub_schema(hass, defaults: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Optional(
@@ -101,17 +101,26 @@ def _hub_schema(defaults: dict[str, Any]) -> vol.Schema:
                 )
             ),
             vol.Optional(
-                CONF_HEMISPHERE,
-                default=defaults.get(CONF_HEMISPHERE, DEFAULT_HEMISPHERE),
-            ): selector.SelectSelector(
-                selector.SelectSelectorConfig(options=["north", "south"])
-            ),
+                CONF_LOCATION,
+                default=location_form_default(hass, defaults),
+            ): selector.LocationSelector(),
             vol.Optional(
                 CONF_TEST_MODE,
                 default=defaults.get(CONF_TEST_MODE, DEFAULT_TEST_MODE),
             ): bool,
         }
     )
+
+
+def _normalize_hub_input(hass, user_input: dict[str, Any]) -> dict[str, Any]:
+    hub = {k: v for k, v in user_input.items() if v not in ("", None)}
+    if CONF_LOCATION in hub:
+        normalized = normalize_location(hass, hub[CONF_LOCATION])
+        if normalized is None:
+            hub.pop(CONF_LOCATION, None)
+        else:
+            hub[CONF_LOCATION] = normalized
+    return hub
 
 
 def _cover_schema(defaults: dict[str, Any]) -> vol.Schema:
@@ -180,7 +189,7 @@ class HaiShutterConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             selected = user_input.pop(CONF_COVERS, [])
-            self._hub = {k: v for k, v in user_input.items() if v not in ("", None)}
+            self._hub = _normalize_hub_input(self.hass, user_input)
             self._names = available
             self._queue = list(selected)
             if not self._queue:
@@ -191,7 +200,7 @@ class HaiShutterConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_COVERS): cv_multi_select(available),
             }
-        ).extend(_hub_schema({}).schema)
+        ).extend(_hub_schema(self.hass, {}).schema)
 
         return self.async_show_form(step_id="user", data_schema=schema)
 
@@ -256,7 +265,7 @@ class HaiShutterOptionsFlow(OptionsFlow):
         if user_input is not None:
             selected = user_input.pop(CONF_COVERS, [])
             self._selected = list(selected)
-            hub_opts = {k: v for k, v in user_input.items() if v not in ("", None)}
+            hub_opts = _normalize_hub_input(self.hass, user_input)
 
             added = [c for c in selected if c not in existing]
             self._queue = list(added)
@@ -274,7 +283,7 @@ class HaiShutterOptionsFlow(OptionsFlow):
                     CONF_COVERS, default=list(existing)
                 ): cv_multi_select(options_for_select),
             }
-        ).extend(_hub_schema(self._hub_defaults()).schema)
+        ).extend(_hub_schema(self.hass, self._hub_defaults()).schema)
 
         return self.async_show_form(step_id="init", data_schema=schema)
 
