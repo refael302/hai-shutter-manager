@@ -75,16 +75,21 @@ type: custom:hai-shutter-table-card
 
 ## Test mode
 
-Enable **Test mode** in the integration options to simulate decisions without
-moving real shutters:
+Enable **Test mode** to simulate decisions without moving real shutters. You can
+turn it on/off two ways:
 
-1. Open *Settings → Devices & Services → HAI Shutter Manager → Configure*.
-2. Turn on **Test mode**.
-3. Adjust manual inputs: season, day/night, rain, sun azimuth/elevation, outdoor
+- **Test mode switch** (`switch.*_test_mode`) — flip it from the dashboard at any
+  time; no need to open the options flow. *(recommended for day-to-day testing)*
+- The options flow (*Settings → Devices & Services → HAI Shutter Manager →
+  Configure → Test mode*).
+
+While on:
+
+1. Adjust manual inputs: season, day/night, rain, sun azimuth/elevation, outdoor
    and per-cover room temperature.
-4. While test mode is active, additional entities appear (switches, numbers,
-   select) for live tweaking from the dashboard.
-5. The integration updates **virtual shutter states** and sends a **detailed
+2. Additional entities appear (switches, numbers, select) for live tweaking from
+   the dashboard.
+3. The integration updates **virtual shutter states** and sends a **detailed
    Telegram log** for each virtual action (and for skipped decisions).
 
 Services:

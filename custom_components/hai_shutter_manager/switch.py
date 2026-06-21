@@ -13,6 +13,7 @@ from .const import (
     CONF_ENABLED,
     CONF_TEST_IS_DAY,
     CONF_TEST_IS_RAINING,
+    CONF_TEST_MODE,
     CONF_TEST_USE_SUN_OVERRIDE,
     DEFAULT_TEST_IS_DAY,
     DEFAULT_TEST_IS_RAINING,
@@ -30,6 +31,7 @@ async def async_setup_entry(
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SwitchEntity] = [
+        TestModeSwitch(coordinator, entry),
         TestIsDaySwitch(coordinator, entry),
         TestIsRainingSwitch(coordinator, entry),
         TestUseSunOverrideSwitch(coordinator, entry),
@@ -63,6 +65,33 @@ class CoverAutomationSwitch(HaiBaseEntity, SwitchEntity):
         await self.coordinator.async_set_cover_option(
             self._cover_id, CONF_ENABLED, False
         )
+
+
+class TestModeSwitch(HaiBaseEntity, SwitchEntity):
+    """Master toggle: enables the virtual test sandbox at runtime.
+
+    While on, the engine works on virtual shutter states and logs decisions to
+    Telegram instead of moving real covers. Always available so it can be
+    flipped from the dashboard without touching the integration options.
+    """
+
+    _attr_icon = "mdi:flask"
+    _attr_translation_key = "test_mode"
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_test_mode_switch"
+        self._attr_name = "Test mode"
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.test_mode
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.async_set_hub_option(CONF_TEST_MODE, True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.async_set_hub_option(CONF_TEST_MODE, False)
 
 
 class _TestHubSwitch(HaiBaseEntity, SwitchEntity):
