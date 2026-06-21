@@ -14,6 +14,11 @@ CONFIG_VERSION = 1
 # How often the decision engine runs.
 UPDATE_INTERVAL = timedelta(minutes=5)
 
+# Rain must be continuous for this long before closing (light rain / binary sensor).
+RAIN_CONFIRM_DELAY = timedelta(minutes=5)
+# Numeric rain sensors above this value (mm) trigger an immediate close.
+RAIN_HEAVY_THRESHOLD_MM = 8.0
+
 # ---------------------------------------------------------------------------
 # Hub-level config keys (stored in entry.data / entry.options)
 # ---------------------------------------------------------------------------

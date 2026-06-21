@@ -81,6 +81,8 @@ from .const import (
     MAX_LOG_ENTRIES,
     PRIORITY_EMERGENCY,
     PRIORITY_NORMAL,
+    RAIN_CONFIRM_DELAY,
+    RAIN_HEAVY_THRESHOLD_MM,
     SEASON_WINTER,
     TARGET_CLOSED,
     TARGET_OPEN,
@@ -143,6 +145,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.season: str = SEASON_WINTER
         self.is_day: bool = True
         self.is_raining: bool = False
+        self.is_raining_raw: bool = False
+        self.rain_intensity_mm: float | None = None
+        self._rain_since: datetime | None = None
 
         self._unsub_state: Any = None
 
@@ -230,15 +235,22 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     runtime["virtual_state"] = TARGET_CLOSED
 
     def _resubscribe(self) -> None:
-        """Track state changes of the managed covers for manual-override detection."""
+        """Track cover, rain-sensor and weather state changes."""
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
         if self.test_mode:
             return
-        if self._covers:
+        tracked: list[str] = list(self._covers)
+        rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
+        if rain_sensor:
+            tracked.append(rain_sensor)
+        weather = self._hub.get(CONF_WEATHER_ENTITY)
+        if weather:
+            tracked.append(weather)
+        if tracked:
             self._unsub_state = async_track_state_change_event(
-                self.hass, list(self._covers), self._handle_cover_state_change
+                self.hass, tracked, self._handle_entity_state_change
             )
 
     async def async_shutdown(self) -> None:
@@ -467,9 +479,14 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result = evaluate_window(self.observer, dt_util.utcnow(), 180, 0, 1, 360)
         return result.elevation > 0
 
-    def _compute_is_raining(self) -> bool:
+    def _read_rain_input(self) -> tuple[bool, float | None]:
+        """Return whether rain is detected now and optional intensity (mm)."""
         if self.test_mode:
-            return bool(self._hub.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING))
+            raining = bool(
+                self._hub.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING)
+            )
+            return raining, None
+
         rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
         if rain_sensor:
             state = self.hass.states.get(rain_sensor)
@@ -478,22 +495,59 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 STATE_UNAVAILABLE,
             ):
                 if state.state in ("on", "wet", "rain", "raining", "true"):
-                    return True
+                    return True, None
                 value = self._read_float_state(rain_sensor)
                 if value is not None:
-                    return value > 0
-                return False
+                    return value > 0, value
+                return False, None
 
         weather = self._hub.get(CONF_WEATHER_ENTITY)
         if weather:
             state = self.hass.states.get(weather)
             if state is not None and state.state in _RAINY_CONDITIONS:
-                return True
-        return False
+                return True, None
+        return False, None
+
+    def _update_rain_tracking(self, now: datetime) -> None:
+        """Track continuous rain; set is_raining when close-on-rain should fire."""
+        active, mm = self._read_rain_input()
+        self.is_raining_raw = active
+        self.rain_intensity_mm = mm if active else None
+
+        if not active:
+            self._rain_since = None
+            self.is_raining = False
+            return
+
+        if self._rain_since is None:
+            self._rain_since = now
+
+        if self.test_mode:
+            self.is_raining = True
+            return
+
+        if mm is not None and mm > RAIN_HEAVY_THRESHOLD_MM:
+            self.is_raining = True
+            return
+
+        self.is_raining = (now - self._rain_since) >= RAIN_CONFIRM_DELAY
 
     # ------------------------------------------------------------------
     # Manual-override detection
     # ------------------------------------------------------------------
+    @callback
+    def _handle_entity_state_change(self, event: Event) -> None:
+        entity_id = event.data[ATTR_ENTITY_ID]
+        if entity_id in self._covers:
+            self._handle_cover_state_change(event)
+            return
+
+        rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
+        weather = self._hub.get(CONF_WEATHER_ENTITY)
+        if entity_id in (rain_sensor, weather):
+            self._update_rain_tracking(dt_util.utcnow())
+            self.hass.async_create_task(self.async_request_refresh())
+
     @callback
     def _handle_cover_state_change(self, event: Event) -> None:
         entity_id = event.data[ATTR_ENTITY_ID]
@@ -543,7 +597,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             self.season = current_season(local_now, self._hub.get(CONF_HEMISPHERE))
         self.is_day = self._compute_is_day()
-        self.is_raining = self._compute_is_raining()
+        self._update_rain_tracking(now)
 
         covers_snapshot: dict[str, Any] = {}
         for cover_id, cfg in self._covers.items():
@@ -558,6 +612,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "season": self.season,
             "is_day": self.is_day,
             "is_raining": self.is_raining,
+            "is_raining_raw": self.is_raining_raw,
             "covers": covers_snapshot,
             "log": list(self._log),
         }

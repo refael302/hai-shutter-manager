@@ -1,0 +1,15 @@
+---
+description: Commit and push to GitHub after every code change
+alwaysApply: true
+---
+
+# Git sync after changes
+
+After completing any code change in this repository:
+
+1. Bump `custom_components/hai_shutter_manager/manifest.json` version (semver) and add a `CHANGELOG.md` entry when the change is user-facing.
+2. Stage all relevant changed files (never commit secrets such as `.env`).
+3. Create a commit with a concise message matching project style (`feat:`, `fix:`, etc.).
+4. Push to `origin` on the current branch (`git push`).
+
+Do this automatically at the end of the task without waiting for the user to ask, unless the user explicitly says not to commit/push.

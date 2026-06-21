@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-06-21
+
+### Added
+
+- Rain close delay: shutters close on rain only after 5 minutes of continuous
+  detection (> 0 mm), or immediately when intensity exceeds 8 mm.
+- Rain binary sensor shows live detection; `confirmed_for_close` attribute
+  indicates when close-on-rain would trigger.
+- Rain and weather entity state changes trigger an immediate coordinator refresh
+  (accurate delay timing without waiting for the 5-minute poll).
+
 ## [0.2.1] - 2026-06-21
 
 ### Added

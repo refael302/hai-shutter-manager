@@ -58,7 +58,15 @@ class RainSensor(HaiBaseEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return bool((self.coordinator.data or {}).get("is_raining"))
+        data = self.coordinator.data or {}
+        return bool(data.get("is_raining_raw"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        return {
+            "confirmed_for_close": bool(data.get("is_raining")),
+        }
 
 
 class CoverStateSensor(HaiBaseEntity, BinarySensorEntity):
