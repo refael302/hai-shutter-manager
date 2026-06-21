@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-06-22
+
+### Changed
+
+- Config/options flow now exposes only the **Test mode** toggle. The manual test
+  overrides (day/night, rain, season, outdoor temp, sun angles) are controlled
+  exclusively through the dashboard entities while test mode is active.
+
 ## [0.4.0] - 2026-06-21
 
 ### Added

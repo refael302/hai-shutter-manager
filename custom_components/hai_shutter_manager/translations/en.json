@@ -13,14 +13,7 @@
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "notify_levels": "Notification levels",
           "hemisphere": "Hemisphere",
-          "test_mode": "Test mode (virtual shutters, no real moves)",
-          "test_is_day": "Test: daytime",
-          "test_is_raining": "Test: raining",
-          "test_season": "Test: season",
-          "test_outdoor_temp": "Test: outdoor temperature",
-          "test_sun_azimuth": "Test: sun azimuth (degrees)",
-          "test_sun_elevation": "Test: sun elevation (degrees)",
-          "test_use_sun_override": "Test: use manual sun angles"
+          "test_mode": "Test mode (virtual shutters, no real moves)"
         }
       },
       "cover": {
@@ -58,14 +51,7 @@
           "outdoor_temp_sensor": "Outdoor temperature sensor (optional)",
           "notify_levels": "Notification levels",
           "hemisphere": "Hemisphere",
-          "test_mode": "Test mode (virtual shutters, no real moves)",
-          "test_is_day": "Test: daytime",
-          "test_is_raining": "Test: raining",
-          "test_season": "Test: season",
-          "test_outdoor_temp": "Test: outdoor temperature",
-          "test_sun_azimuth": "Test: sun azimuth (degrees)",
-          "test_sun_elevation": "Test: sun elevation (degrees)",
-          "test_use_sun_override": "Test: use manual sun angles"
+          "test_mode": "Test mode (virtual shutters, no real moves)"
         }
       },
       "cover": {
