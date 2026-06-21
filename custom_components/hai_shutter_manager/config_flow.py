@@ -40,7 +40,6 @@ from .const import (
     CONF_TEST_SUN_AZIMUTH,
     CONF_TEST_SUN_ELEVATION,
     CONF_TEST_USE_SUN_OVERRIDE,
-    CONF_WEATHER_ENTITY,
     CONF_WINDOW_HEIGHT,
     CONFIG_VERSION,
     DEFAULT_ACTION_DELAY,
@@ -104,12 +103,6 @@ def _hub_schema(defaults: dict[str, Any]) -> vol.Schema:
                 default=defaults.get(CONF_OUTDOOR_TEMP_SENSOR, ""),
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
-            ),
-            vol.Optional(
-                CONF_WEATHER_ENTITY,
-                default=defaults.get(CONF_WEATHER_ENTITY, ""),
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="weather")
             ),
             vol.Optional(
                 CONF_NOTIFY_LEVELS,

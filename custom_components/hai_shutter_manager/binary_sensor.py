@@ -66,6 +66,8 @@ class RainSensor(HaiBaseEntity, BinarySensorEntity):
         data = self.coordinator.data or {}
         return {
             "confirmed_for_close": bool(data.get("is_raining")),
+            "rain_forecast_soon": bool(data.get("rain_forecast_soon")),
+            "open_meteo_available": bool(data.get("open_meteo_available")),
         }
 
 

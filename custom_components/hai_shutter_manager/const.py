@@ -14,6 +14,12 @@ CONFIG_VERSION = 1
 # How often the decision engine runs.
 UPDATE_INTERVAL = timedelta(minutes=5)
 
+# Open-Meteo forecast (used when no local rain / temperature sensor is set).
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_FORECAST_HOURS = 24
+RAIN_FORECAST_HOURS = 3
+MIN_FORECAST_PRECIPITATION_MM = 0.1
+
 # Rain must be continuous for this long before closing (light rain / binary sensor).
 RAIN_CONFIRM_DELAY = timedelta(minutes=5)
 # Numeric rain sensors above this value (mm) trigger an immediate close.
@@ -28,7 +34,6 @@ CONF_TELEGRAM_BOT_TOKEN = "telegram_bot_token"
 CONF_TELEGRAM_NOTIFY_SERVICE = "telegram_notify_service"
 CONF_RAIN_SENSOR = "rain_sensor"
 CONF_OUTDOOR_TEMP_SENSOR = "outdoor_temp_sensor"
-CONF_WEATHER_ENTITY = "weather_entity"
 CONF_NOTIFY_LEVELS = "notify_levels"
 CONF_HEMISPHERE = "hemisphere"
 CONF_TEST_MODE = "test_mode"

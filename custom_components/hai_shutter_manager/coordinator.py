@@ -56,7 +56,6 @@ from .const import (
     CONF_TEST_SUN_AZIMUTH,
     CONF_TEST_SUN_ELEVATION,
     CONF_TEST_USE_SUN_OVERRIDE,
-    CONF_WEATHER_ENTITY,
     CONF_WINDOW_HEIGHT,
     DEFAULT_ACTION_DELAY,
     DEFAULT_CLOSE_EVENING,
@@ -90,19 +89,12 @@ from .const import (
 )
 from .engine import decide_target
 from .notify import TelegramNotifier
+from .open_meteo import OpenMeteoClient, OpenMeteoSnapshot
 from .season import current_season
 from .sun_calc import evaluate_window, evaluate_window_from_sun, forecast_window_hits
 from .test_mode import format_test_action_log, format_test_skip_log
 
 _LOGGER = logging.getLogger(__name__)
-
-_RAINY_CONDITIONS = {
-    "rainy",
-    "pouring",
-    "lightning-rainy",
-    "snowy-rainy",
-    "hail",
-}
 
 COVER_DEFAULTS: dict[str, Any] = {
     CONF_DIRECTION: "S",
@@ -135,6 +127,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             latitude=hass.config.latitude, longitude=hass.config.longitude
         )
         self.notifier = TelegramNotifier(hass)
+        self._open_meteo = OpenMeteoClient(hass)
+        self._open_meteo_data: OpenMeteoSnapshot | None = None
 
         self._hub: dict[str, Any] = {}
         self._covers: dict[str, dict[str, Any]] = {}
@@ -147,6 +141,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.is_raining: bool = False
         self.is_raining_raw: bool = False
         self.rain_intensity_mm: float | None = None
+        self.rain_forecast_soon: bool = False
         self._rain_since: datetime | None = None
 
         self._unsub_state: Any = None
@@ -169,7 +164,6 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             CONF_TELEGRAM_NOTIFY_SERVICE: data.get(CONF_TELEGRAM_NOTIFY_SERVICE),
             CONF_RAIN_SENSOR: data.get(CONF_RAIN_SENSOR),
             CONF_OUTDOOR_TEMP_SENSOR: data.get(CONF_OUTDOOR_TEMP_SENSOR),
-            CONF_WEATHER_ENTITY: data.get(CONF_WEATHER_ENTITY),
             CONF_NOTIFY_LEVELS: data.get(
                 CONF_NOTIFY_LEVELS, [PRIORITY_NORMAL, PRIORITY_EMERGENCY]
             ),
@@ -235,7 +229,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     runtime["virtual_state"] = TARGET_CLOSED
 
     def _resubscribe(self) -> None:
-        """Track cover, rain-sensor and weather state changes."""
+        """Track cover and rain-sensor state changes."""
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
@@ -245,9 +239,6 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
         if rain_sensor:
             tracked.append(rain_sensor)
-        weather = self._hub.get(CONF_WEATHER_ENTITY)
-        if weather:
-            tracked.append(weather)
         if tracked:
             self._unsub_state = async_track_state_change_event(
                 self.hass, tracked, self._handle_entity_state_change
@@ -455,20 +446,21 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if value is not None:
             return value
 
-        return self._weather_temperature()
+        return self._open_meteo_temperature()
 
-    def _weather_temperature(self) -> float | None:
-        weather = self._hub.get(CONF_WEATHER_ENTITY)
-        if not weather:
+    def _open_meteo_temperature(self) -> float | None:
+        if self._open_meteo_data is None:
             return None
-        state = self.hass.states.get(weather)
-        if state is None:
-            return None
-        temp = state.attributes.get("temperature")
-        try:
-            return float(temp) if temp is not None else None
-        except (ValueError, TypeError):
-            return None
+        return self._open_meteo_data.temperature_c
+
+    async def _refresh_open_meteo(self) -> None:
+        """Fetch the latest Open-Meteo forecast for the HA home location."""
+        if self.test_mode:
+            return
+        self._open_meteo_data = await self._open_meteo.async_fetch(
+            self.hass.config.latitude,
+            self.hass.config.longitude,
+        )
 
     def _compute_is_day(self) -> bool:
         if self.test_mode:
@@ -479,13 +471,13 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result = evaluate_window(self.observer, dt_util.utcnow(), 180, 0, 1, 360)
         return result.elevation > 0
 
-    def _read_rain_input(self) -> tuple[bool, float | None]:
-        """Return whether rain is detected now and optional intensity (mm)."""
+    def _read_rain_input(self) -> tuple[bool, float | None, bool]:
+        """Return whether rain is detected, optional intensity (mm), forecast flag."""
         if self.test_mode:
             raining = bool(
                 self._hub.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING)
             )
-            return raining, None
+            return raining, None, False
 
         rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
         if rain_sensor:
@@ -495,23 +487,30 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 STATE_UNAVAILABLE,
             ):
                 if state.state in ("on", "wet", "rain", "raining", "true"):
-                    return True, None
+                    return True, None, False
                 value = self._read_float_state(rain_sensor)
                 if value is not None:
-                    return value > 0, value
-                return False, None
+                    return value > 0, value, False
+                return False, None, False
 
-        weather = self._hub.get(CONF_WEATHER_ENTITY)
-        if weather:
-            state = self.hass.states.get(weather)
-            if state is not None and state.state in _RAINY_CONDITIONS:
-                return True, None
-        return False, None
+        data = self._open_meteo_data
+        if data is None:
+            return False, None, False
+
+        if data.rain_now:
+            mm = data.current_precipitation_mm
+            return True, mm, False
+
+        if data.rain_forecast:
+            return True, data.forecast_max_precipitation_mm, True
+
+        return False, None, False
 
     def _update_rain_tracking(self, now: datetime) -> None:
         """Track continuous rain; set is_raining when close-on-rain should fire."""
-        active, mm = self._read_rain_input()
+        active, mm, from_forecast = self._read_rain_input()
         self.is_raining_raw = active
+        self.rain_forecast_soon = from_forecast
         self.rain_intensity_mm = mm if active else None
 
         if not active:
@@ -523,6 +522,10 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._rain_since = now
 
         if self.test_mode:
+            self.is_raining = True
+            return
+
+        if from_forecast:
             self.is_raining = True
             return
 
@@ -543,8 +546,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         rain_sensor = self._hub.get(CONF_RAIN_SENSOR)
-        weather = self._hub.get(CONF_WEATHER_ENTITY)
-        if entity_id in (rain_sensor, weather):
+        if entity_id == rain_sensor:
             self._update_rain_tracking(dt_util.utcnow())
             self.hass.async_create_task(self.async_request_refresh())
 
@@ -592,6 +594,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         now = dt_util.utcnow()
         local_now = dt_util.now()
 
+        await self._refresh_open_meteo()
+
         if self.test_mode and self._hub.get(CONF_TEST_SEASON):
             self.season = str(self._hub[CONF_TEST_SEASON])
         else:
@@ -613,6 +617,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "is_day": self.is_day,
             "is_raining": self.is_raining,
             "is_raining_raw": self.is_raining_raw,
+            "rain_forecast_soon": self.rain_forecast_soon,
+            "open_meteo_available": self._open_meteo_data is not None,
             "covers": covers_snapshot,
             "log": list(self._log),
         }

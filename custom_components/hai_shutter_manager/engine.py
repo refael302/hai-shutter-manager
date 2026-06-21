@@ -45,6 +45,12 @@ def decide_target(coordinator, cover_id: str, cfg: dict) -> Decision:
     # 1. Rain protection has the highest priority among comfort goals.
     if raining and cfg.get(CONF_CLOSE_RAIN):
         mm = coordinator.rain_intensity_mm
+        if coordinator.rain_forecast_soon:
+            if mm is not None:
+                return Decision(
+                    TARGET_CLOSED, f"rain forecast ({mm:.1f} mm in next hours)"
+                )
+            return Decision(TARGET_CLOSED, "rain forecast")
         if mm is not None and mm > RAIN_HEAVY_THRESHOLD_MM:
             return Decision(TARGET_CLOSED, f"heavy rain ({mm:.1f} mm)")
         return Decision(TARGET_CLOSED, "rain protection")

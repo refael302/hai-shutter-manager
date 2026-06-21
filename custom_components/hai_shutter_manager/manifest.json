@@ -1,13 +1,12 @@
 {
   "domain": "hai_shutter_manager",
   "name": "HAI Shutter Manager",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "documentation": "https://github.com/refael302/hai-shutter-manager",
   "issue_tracker": "https://github.com/refael302/hai-shutter-manager/issues",
   "codeowners": ["@refael302"],
   "config_flow": true,
   "dependencies": ["sun"],
-  "after_dependencies": ["weather"],
   "integration_type": "hub",
   "iot_class": "calculated",
   "requirements": []

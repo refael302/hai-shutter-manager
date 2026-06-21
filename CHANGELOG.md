@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-21
+
+### Added
+
+- **Open-Meteo forecast client**: fetches rain and temperature directly from the
+  Open-Meteo API using the Home Assistant home location. No weather integration
+  or API key required.
+- Rain forecast within the next 3 hours closes shutters proactively (no 5-minute
+  confirmation delay).
+- Rain binary sensor exposes `rain_forecast_soon` and `open_meteo_available`
+  attributes.
+
+### Removed
+
+- **Weather entity** config option — replaced by built-in Open-Meteo support.
+
 ## [0.3.0] - 2026-06-21
 
 ### Added

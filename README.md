@@ -22,7 +22,8 @@ wear.
   - Summer: minimize incoming sun.
   - Transition: keep the room at your desired temperature (using the temperature
     sensor associated with the shutter's area in Home Assistant).
-- **Weather forecast fallback** when no rain / outdoor temperature sensor is set.
+- **Open-Meteo forecast** for rain and outdoor temperature when no local rain /
+  outdoor temperature sensor is set (no separate weather integration required).
 - **Telegram notifications** split into `normal` and `emergency` priorities, with
   de-duplication and rate-limiting to prevent spam.
 - **Manual-override aware**: if you (or any third party) move a shutter manually,
