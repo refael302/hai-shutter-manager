@@ -75,7 +75,8 @@
     "sensor": {
       "action_log": { "name": "Action log" },
       "season": { "name": "Season" },
-      "test_mode": { "name": "Test mode" }
+      "test_mode": { "name": "Test mode" },
+      "outdoor_temp": { "name": "Outdoor temperature" }
     },
     "binary_sensor": {
       "day_night": { "name": "Daytime" },

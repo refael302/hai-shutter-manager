@@ -455,6 +455,21 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return self._open_meteo_temperature()
 
+    def current_outdoor_temp(self) -> float | None:
+        """Effective outdoor temperature (test override, sensor, or forecast)."""
+        if self.test_mode:
+            override = self._hub.get(CONF_TEST_OUTDOOR_TEMP)
+            if override is not None:
+                try:
+                    return float(override)
+                except (ValueError, TypeError):
+                    pass
+            return None
+        value = self._read_float_state(self._hub.get(CONF_OUTDOOR_TEMP_SENSOR))
+        if value is not None:
+            return value
+        return self._open_meteo_temperature()
+
     def _open_meteo_temperature(self) -> float | None:
         if self._open_meteo_data is None:
             return None
@@ -626,6 +641,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "is_raining_raw": self.is_raining_raw,
             "rain_forecast_soon": self.rain_forecast_soon,
             "open_meteo_available": self._open_meteo_data is not None,
+            "outdoor_temp": self.current_outdoor_temp(),
             "covers": covers_snapshot,
             "log": list(self._log),
         }
@@ -648,6 +664,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "sun_hit": False,
             "moves_today": runtime.get("moves_today", 0),
             "test_mode": self.test_mode,
+            "room_temp": self.get_area_temp(cover_id, cfg),
         }
 
         if self.test_mode:

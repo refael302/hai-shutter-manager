@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,7 +25,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LogSensor(coordinator, entry), SeasonSensor(coordinator, entry), TestModeSensor(coordinator, entry)])
+    entities: list[SensorEntity] = [
+        LogSensor(coordinator, entry),
+        SeasonSensor(coordinator, entry),
+        TestModeSensor(coordinator, entry),
+        OutdoorTempSensor(coordinator, entry),
+    ]
+    for cover_id in coordinator.covers:
+        entities.append(RoomTempSensor(coordinator, entry, cover_id))
+    async_add_entities(entities)
 
 
 class LogSensor(HaiBaseEntity, SensorEntity):
@@ -77,3 +90,47 @@ class TestModeSensor(HaiBaseEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         return "active" if self.coordinator.test_mode else "off"
+
+
+class OutdoorTempSensor(HaiBaseEntity, SensorEntity):
+    """Outdoor temperature used by the engine (override-aware in test mode)."""
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_icon = "mdi:thermometer"
+    _attr_translation_key = "outdoor_temp"
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_outdoor_temp"
+        self._attr_name = "Outdoor temperature"
+
+    @property
+    def native_value(self) -> float | None:
+        return (self.coordinator.data or {}).get("outdoor_temp")
+
+
+class RoomTempSensor(HaiBaseEntity, SensorEntity):
+    """Per-cover room temperature used by the engine (override-aware in test mode)."""
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_icon = "mdi:home-thermometer"
+
+    def __init__(
+        self, coordinator: ShutterCoordinator, entry: ConfigEntry, cover_id: str
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._cover_id = cover_id
+        self._attr_unique_id = f"{entry.entry_id}_{cover_id}_room_temp"
+        self._attr_name = f"{self._cover_name(cover_id)} room temperature"
+
+    def _snapshot(self) -> dict[str, Any]:
+        covers = (self.coordinator.data or {}).get("covers", {})
+        return covers.get(self._cover_id, {})
+
+    @property
+    def native_value(self) -> float | None:
+        return self._snapshot().get("room_temp")

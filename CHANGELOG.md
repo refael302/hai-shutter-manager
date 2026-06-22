@@ -4,6 +4,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-06-22
+
+### Added
+
+- **Environment sensors** visible in both normal and test mode:
+  - `sensor.*_outdoor_temperature` — outdoor temperature used by the engine
+    (reflects the test override while test mode is active).
+  - per-cover `sensor.*_room_temperature` — room/area temperature used by the
+    engine (reflects the per-cover test override while test mode is active).
+- **Per-cover virtual shutter state** control (`select.*_test_shutter_state`):
+  manually set a cover's virtual open/closed state from the dashboard while test
+  mode is active (previously only possible through the `set_virtual_state`
+  service).
+
+### Changed
+
+- Test mode now offers a complete set of manual overrides for every engine
+  input — season, day/night, rain, outdoor & room temperature, sun angles, and
+  each cover's virtual state — all editable from the dashboard.
+
 ## [0.4.3] - 2026-06-22
 
 ### Fixed

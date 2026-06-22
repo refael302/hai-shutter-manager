@@ -75,7 +75,8 @@
     "sensor": {
       "action_log": { "name": "יומן פעולות" },
       "season": { "name": "עונה" },
-      "test_mode": { "name": "מצב בדיקות" }
+      "test_mode": { "name": "מצב בדיקות" },
+      "outdoor_temp": { "name": "טמפרטורה חיצונית" }
     },
     "binary_sensor": {
       "day_night": { "name": "יום" },
