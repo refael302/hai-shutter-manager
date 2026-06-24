@@ -114,6 +114,14 @@ def _safe_int(value: Any, default: int) -> int:
         return default
 
 
+def _coerce_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _hub_float(hub: dict[str, Any], key: str, default: float) -> float:
+    return _safe_float(hub.get(key), default)
+
+
 COVER_DEFAULTS: dict[str, Any] = {
     CONF_DIRECTION: "S",
     CONF_EAVE_LENGTH: DEFAULT_EAVE_LENGTH,
@@ -175,6 +183,12 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def reload_config(self) -> None:
         """(Re)read config from the config entry data + options."""
+        try:
+            self._reload_config_impl()
+        except Exception:
+            _LOGGER.exception("Failed to reload HAI Shutter Manager config")
+
+    def _reload_config_impl(self) -> None:
         data = self.entry.data
         options = self.entry.options
 
@@ -182,8 +196,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             CONF_TELEGRAM_CHAT_ID: data.get(CONF_TELEGRAM_CHAT_ID),
             CONF_TELEGRAM_BOT_TOKEN: data.get(CONF_TELEGRAM_BOT_TOKEN),
             CONF_TELEGRAM_NOTIFY_SERVICE: data.get(CONF_TELEGRAM_NOTIFY_SERVICE),
-            CONF_RAIN_SENSOR: data.get(CONF_RAIN_SENSOR),
-            CONF_OUTDOOR_TEMP_SENSOR: data.get(CONF_OUTDOOR_TEMP_SENSOR),
+            CONF_RAIN_SENSOR: data.get(CONF_RAIN_SENSOR) or None,
+            CONF_OUTDOOR_TEMP_SENSOR: data.get(CONF_OUTDOOR_TEMP_SENSOR) or None,
             CONF_NOTIFY_LEVELS: data.get(
                 CONF_NOTIFY_LEVELS, [PRIORITY_NORMAL, PRIORITY_EMERGENCY]
             ),
@@ -204,26 +218,42 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 CONF_TEST_USE_SUN_OVERRIDE, DEFAULT_TEST_USE_SUN_OVERRIDE
             ),
         }
-        # Hub-level overrides from options.
+        # Hub-level overrides from options (skip empty values).
         for key in list(self._hub):
-            if key in options:
-                self._hub[key] = options[key]
+            if key not in options:
+                continue
+            value = options[key]
+            if value in (None, ""):
+                continue
+            self._hub[key] = value
 
         self._latitude, self._longitude = resolve_location(
             self.hass, data, options
         )
-        self.observer = Observer(
-            latitude=self._latitude, longitude=self._longitude
-        )
+        try:
+            self.observer = Observer(
+                latitude=self._latitude, longitude=self._longitude
+            )
+        except Exception:
+            _LOGGER.warning("Invalid coordinates; using Home Assistant home location")
+            self._latitude = self.hass.config.latitude
+            self._longitude = self.hass.config.longitude
+            self.observer = Observer(
+                latitude=self._latitude, longitude=self._longitude
+            )
 
-        data_covers: dict[str, Any] = data.get(CONF_COVERS, {})
-        option_covers: dict[str, Any] = options.get(CONF_COVERS, {})
+        data_covers = _coerce_dict(data.get(CONF_COVERS))
+        option_covers = _coerce_dict(options.get(CONF_COVERS))
 
         merged: dict[str, dict[str, Any]] = {}
         for cover_id in set(data_covers) | set(option_covers):
             cfg = dict(COVER_DEFAULTS)
-            cfg.update(data_covers.get(cover_id, {}))
-            cfg.update(option_covers.get(cover_id, {}))
+            cover_data = data_covers.get(cover_id)
+            cover_opts = option_covers.get(cover_id)
+            if isinstance(cover_data, dict):
+                cfg.update(cover_data)
+            if isinstance(cover_opts, dict):
+                cfg.update(cover_opts)
             merged[cover_id] = cfg
         self._covers = merged
 
@@ -373,16 +403,17 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return float(DIRECTIONS.get(cfg.get(CONF_DIRECTION, "S"), 180))
 
     def sun_hits_now(self, cover_id: str, cfg: dict[str, Any]) -> bool:
-        eave = float(cfg.get(CONF_EAVE_LENGTH, DEFAULT_EAVE_LENGTH))
-        height = float(cfg.get(CONF_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT))
-        fov = float(cfg.get(CONF_FOV, DEFAULT_FOV))
+        eave = _safe_float(cfg.get(CONF_EAVE_LENGTH), DEFAULT_EAVE_LENGTH)
+        height = _safe_float(cfg.get(CONF_WINDOW_HEIGHT), DEFAULT_WINDOW_HEIGHT)
+        fov = _safe_float(cfg.get(CONF_FOV), DEFAULT_FOV)
         window_az = self._window_azimuth(cfg)
+        runtime = self._runtime.setdefault(cover_id, {})
 
         if self.test_mode and self._hub.get(CONF_TEST_USE_SUN_OVERRIDE):
             result = evaluate_window_from_sun(
-                float(self._hub.get(CONF_TEST_SUN_AZIMUTH, DEFAULT_TEST_SUN_AZIMUTH)),
-                float(
-                    self._hub.get(CONF_TEST_SUN_ELEVATION, DEFAULT_TEST_SUN_ELEVATION)
+                _hub_float(self._hub, CONF_TEST_SUN_AZIMUTH, DEFAULT_TEST_SUN_AZIMUTH),
+                _hub_float(
+                    self._hub, CONF_TEST_SUN_ELEVATION, DEFAULT_TEST_SUN_ELEVATION
                 ),
                 window_az,
                 eave,
@@ -398,9 +429,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 height,
                 fov,
             )
-        self._runtime[cover_id]["sun_azimuth"] = result.azimuth
-        self._runtime[cover_id]["sun_elevation"] = result.elevation
-        self._runtime[cover_id]["sunlit_fraction"] = result.sunlit_fraction
+        runtime["sun_azimuth"] = result.azimuth
+        runtime["sun_elevation"] = result.elevation
+        runtime["sunlit_fraction"] = result.sunlit_fraction
         return result.hits
 
     def sun_hits_soon(self, cover_id: str, cfg: dict[str, Any]) -> bool:
@@ -410,9 +441,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.observer,
             dt_util.utcnow(),
             self._window_azimuth(cfg),
-            float(cfg.get(CONF_EAVE_LENGTH, DEFAULT_EAVE_LENGTH)),
-            float(cfg.get(CONF_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT)),
-            float(cfg.get(CONF_FOV, DEFAULT_FOV)),
+            _safe_float(cfg.get(CONF_EAVE_LENGTH), DEFAULT_EAVE_LENGTH),
+            _safe_float(cfg.get(CONF_WINDOW_HEIGHT), DEFAULT_WINDOW_HEIGHT),
+            _safe_float(cfg.get(CONF_FOV), DEFAULT_FOV),
             hours_ahead=3,
         )
         return bool(hits)
@@ -661,7 +692,29 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.exception("Coordinator refresh failed")
             if self.data is not None:
                 return self.data
-            raise
+            return self.build_fallback_data()
+
+    def build_fallback_data(self) -> dict[str, Any]:
+        """Minimal coordinator payload used when a refresh cannot run."""
+        return {
+            "test_mode": self.test_mode,
+            "season": str(self._hub.get(CONF_TEST_SEASON, DEFAULT_TEST_SEASON)),
+            "is_day": bool(self._hub.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY)),
+            "is_raining": False,
+            "is_raining_raw": False,
+            "rain_forecast_soon": False,
+            "open_meteo_available": False,
+            "outdoor_temp": None,
+            "covers": {},
+            "log": [
+                {
+                    "time": dt_util.utcnow().isoformat(),
+                    "cover": "",
+                    "message": "Coordinator fallback — check Home Assistant logs",
+                    "reason": "",
+                }
+            ],
+        }
 
     async def _async_update_data_impl(self) -> dict[str, Any]:
         now = dt_util.utcnow()
