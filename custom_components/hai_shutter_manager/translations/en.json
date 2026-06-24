@@ -83,13 +83,12 @@
       "rain": { "name": "Rain" }
     },
     "select": {
-      "test_season": { "name": "Test season override" }
-    },
-    "switch": {
       "test_mode": { "name": "Test mode" },
+      "test_season": { "name": "Test season override" },
       "test_is_day": { "name": "Test daytime override" },
       "test_is_raining": { "name": "Test rain override" },
-      "test_use_sun_override": { "name": "Test manual sun angles" }
-    }
+      "test_use_sun_override": { "name": "Test sun calculation" }
+    },
+    "switch": {}
   }
 }

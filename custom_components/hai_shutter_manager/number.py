@@ -207,7 +207,10 @@ class HaiTestHubNumber(HaiBaseEntity, NumberEntity):
         value = self.coordinator.hub.get(self._description.key)
         if value is None:
             return self._description.default
-        return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return self._description.default
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.async_set_hub_option(self._description.key, value)
@@ -242,12 +245,15 @@ class HaiTestCoverNumber(HaiBaseEntity, NumberEntity):
         return self.coordinator.test_mode
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> float:
         cfg = self.coordinator.cover_config(self._cover_id)
         value = cfg.get(self._description.key)
         if value is None:
-            return None
-        return float(value)
+            return self._description.default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return self._description.default
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.async_set_cover_option(

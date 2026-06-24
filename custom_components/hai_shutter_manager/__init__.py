@@ -61,7 +61,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         coordinator.async_set_updated_data(coordinator.build_fallback_data())
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    loaded: list[str] = []
+    for platform in PLATFORMS:
+        try:
+            await hass.config_entries.async_forward_entry_setups(entry, [platform])
+            loaded.append(platform)
+        except Exception:
+            _LOGGER.exception(
+                "HAI Shutter Manager: failed to set up platform %s", platform
+            )
+    if not loaded:
+        _LOGGER.error("HAI Shutter Manager: no platforms loaded")
+        return False
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     _async_register_services(hass)

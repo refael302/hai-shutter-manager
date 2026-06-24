@@ -83,13 +83,12 @@
       "rain": { "name": "גשם" }
     },
     "select": {
-      "test_season": { "name": "עונת בדיקה" }
-    },
-    "switch": {
       "test_mode": { "name": "מצב בדיקות" },
-      "test_is_day": { "name": "בדיקה: יום" },
+      "test_season": { "name": "עונת בדיקה" },
+      "test_is_day": { "name": "בדיקה: יום/לילה" },
       "test_is_raining": { "name": "בדיקה: גשם" },
-      "test_use_sun_override": { "name": "בדיקה: זוויות שמש ידניות" }
-    }
+      "test_use_sun_override": { "name": "בדיקה: חישוב שמש" }
+    },
+    "switch": {}
   }
 }

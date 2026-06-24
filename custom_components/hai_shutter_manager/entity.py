@@ -25,6 +25,10 @@ class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
         self._entry = entry
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success or self.coordinator.data is not None
+
+    @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry.entry_id)},
