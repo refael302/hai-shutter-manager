@@ -80,7 +80,10 @@ def decide_target(coordinator, cover_id: str, cfg: dict) -> Decision:
         return Decision(TARGET_OPEN, "summer: no direct sun")
 
     # 4. Transition season: aim for the desired room temperature.
-    desired = float(cfg.get(CONF_DESIRED_TEMP, DEFAULT_DESIRED_TEMP))
+    try:
+        desired = float(cfg.get(CONF_DESIRED_TEMP, DEFAULT_DESIRED_TEMP))
+    except (TypeError, ValueError):
+        desired = DEFAULT_DESIRED_TEMP
     room_temp = coordinator.get_area_temp(cover_id, cfg)
 
     if room_temp is None:

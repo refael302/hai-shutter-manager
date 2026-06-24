@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+try:
+    from homeassistant.helpers.device_registry import DeviceInfo
+except ImportError:  # Home Assistant < 2024.2
+    from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, INTEGRATION_ICON
 from .coordinator import ShutterCoordinator

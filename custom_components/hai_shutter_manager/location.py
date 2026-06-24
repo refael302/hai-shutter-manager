@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_LOCATION
+
+_LOGGER = logging.getLogger(__name__)
 
 _LOCATION_EPS = 0.0001
 
@@ -47,10 +50,14 @@ def resolve_location(
     options: dict[str, Any] | None = None,
 ) -> tuple[float, float]:
     """Return the effective latitude and longitude."""
+    loc: Any = None
     if options and CONF_LOCATION in options:
         loc = options[CONF_LOCATION]
     else:
         loc = data.get(CONF_LOCATION)
-    if loc:
-        return float(loc["latitude"]), float(loc["longitude"])
+    if isinstance(loc, dict):
+        try:
+            return float(loc["latitude"]), float(loc["longitude"])
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.warning("Invalid location in config; using HA home location")
     return hass.config.latitude, hass.config.longitude

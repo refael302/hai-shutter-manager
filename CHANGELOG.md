@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-06-24
+
+### Fixed
+
+- Coordinator no longer marks every entity **unavailable** when a single cover
+  evaluation or sun calculation fails; errors are logged and isolated per cover.
+- Declared `astral` in `manifest.json` requirements so sun calculations work on
+  all Home Assistant installations.
+- Hardened config parsing (invalid action delay, move limits, location, notify
+  levels) so corrupted options cannot crash the integration.
+- `DeviceInfo` import is compatible with both older and current Home Assistant
+  versions.
+- Hub/cover option changes apply immediately in memory without waiting for a
+  config-entry reload cycle.
+
 ## [0.5.0] - 2026-06-22
 
 ### Added

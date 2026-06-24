@@ -95,6 +95,25 @@ from .test_mode import format_test_action_log, format_test_skip_log
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _safe_float(value: Any, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value: Any, default: int) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 COVER_DEFAULTS: dict[str, Any] = {
     CONF_DIRECTION: "S",
     CONF_EAVE_LENGTH: DEFAULT_EAVE_LENGTH,
@@ -215,7 +234,11 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             chat_id=self._hub[CONF_TELEGRAM_CHAT_ID],
             bot_token=self._hub[CONF_TELEGRAM_BOT_TOKEN],
             notify_service=self._hub[CONF_TELEGRAM_NOTIFY_SERVICE],
-            levels=self._hub[CONF_NOTIFY_LEVELS],
+            levels=(
+                self._hub[CONF_NOTIFY_LEVELS]
+                if isinstance(self._hub.get(CONF_NOTIFY_LEVELS), list)
+                else [PRIORITY_NORMAL, PRIORITY_EMERGENCY]
+            ),
             test_mode=bool(self._hub.get(CONF_TEST_MODE)),
         )
 
@@ -285,12 +308,29 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         covers = {k: dict(v) for k, v in options.get(CONF_COVERS, {}).items()}
         covers.setdefault(cover_id, {})[key] = value
         options[CONF_COVERS] = covers
+        if cover_id in self._covers:
+            self._covers[cover_id][key] = value
+        else:
+            cfg = dict(COVER_DEFAULTS)
+            cfg.update(covers.get(cover_id, {}))
+            self._covers[cover_id] = cfg
         self.hass.config_entries.async_update_entry(self.entry, options=options)
 
     async def async_set_hub_option(self, key: str, value: Any) -> None:
         """Persist a hub-level option (test overrides, etc.)."""
         options = dict(self.entry.options)
         options[key] = value
+        self._hub[key] = value
+        if key == CONF_TEST_MODE:
+            self.notifier.configure(
+                chat_id=self._hub[CONF_TELEGRAM_CHAT_ID],
+                bot_token=self._hub[CONF_TELEGRAM_BOT_TOKEN],
+                notify_service=self._hub[CONF_TELEGRAM_NOTIFY_SERVICE],
+                levels=self._hub[CONF_NOTIFY_LEVELS],
+                test_mode=bool(value),
+            )
+            self._init_virtual_states()
+            self._resubscribe()
         self.hass.config_entries.async_update_entry(self.entry, options=options)
 
     async def async_set_virtual_state(self, cover_id: str, state: str) -> None:
@@ -595,7 +635,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         cfg = self._covers[entity_id]
-        delay = timedelta(hours=float(cfg.get(CONF_ACTION_DELAY, DEFAULT_ACTION_DELAY)))
+        delay = timedelta(
+            hours=_safe_float(cfg.get(CONF_ACTION_DELAY), DEFAULT_ACTION_DELAY)
+        )
         runtime["manual_until"] = now + delay
         self._add_log(
             entity_id,
@@ -613,6 +655,15 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Main loop
     # ------------------------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
+        try:
+            return await self._async_update_data_impl()
+        except Exception:
+            _LOGGER.exception("Coordinator refresh failed")
+            if self.data is not None:
+                return self.data
+            raise
+
+    async def _async_update_data_impl(self) -> dict[str, Any]:
         now = dt_util.utcnow()
         local_now = dt_util.now()
 
@@ -626,12 +677,27 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._update_rain_tracking(now)
 
         covers_snapshot: dict[str, Any] = {}
-        for cover_id, cfg in self._covers.items():
-            runtime = self._runtime.setdefault(cover_id, {})
-            runtime.pop("last_skip_log", None)
-            covers_snapshot[cover_id] = await self._evaluate_cover(
-                cover_id, cfg, now
-            )
+        for cover_id, cfg in list(self._covers.items()):
+            try:
+                covers_snapshot[cover_id] = await self._evaluate_cover(
+                    cover_id, dict(cfg), now
+                )
+            except Exception:
+                _LOGGER.exception("Failed to evaluate cover %s", cover_id)
+                covers_snapshot[cover_id] = {
+                    "config": cfg,
+                    "state": None,
+                    "virtual_state": None,
+                    "available": False,
+                    "target": None,
+                    "reason": "evaluation error",
+                    "manual_until": None,
+                    "last_action": None,
+                    "sun_hit": False,
+                    "moves_today": 0,
+                    "test_mode": self.test_mode,
+                    "room_temp": None,
+                }
 
         return {
             "test_mode": self.test_mode,
@@ -650,6 +716,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, cover_id: str, cfg: dict[str, Any], now: datetime
     ) -> dict[str, Any]:
         runtime = self._runtime.setdefault(cover_id, {})
+        runtime.pop("last_skip_log", None)
         effective_state = self._cover_state(cover_id)
 
         snapshot: dict[str, Any] = {
@@ -702,7 +769,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return snapshot
 
         # Debounce: respect the per-cover action delay.
-        delay = timedelta(hours=float(cfg.get(CONF_ACTION_DELAY, DEFAULT_ACTION_DELAY)))
+        delay = timedelta(
+            hours=_safe_float(cfg.get(CONF_ACTION_DELAY), DEFAULT_ACTION_DELAY)
+        )
         last_action = runtime.get("last_action_time")
         if last_action is not None and now - last_action < delay:
             snapshot["reason"] = "within action delay"
@@ -734,7 +803,9 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return snapshot
 
         # Daily move limit guard (motor protection).
-        max_moves = int(cfg.get(CONF_MAX_MOVES_PER_DAY, DEFAULT_MAX_MOVES_PER_DAY))
+        max_moves = _safe_int(
+            cfg.get(CONF_MAX_MOVES_PER_DAY), DEFAULT_MAX_MOVES_PER_DAY
+        )
         if runtime.get("moves_today", 0) >= max_moves:
             snapshot["reason"] = f"daily move limit reached ({max_moves})"
             if self.test_mode:
@@ -757,7 +828,11 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         snapshot: dict[str, Any],
         runtime: dict[str, Any],
     ) -> None:
-        snapshot["sun_hit"] = self.sun_hits_now(cover_id, cfg)
+        try:
+            snapshot["sun_hit"] = self.sun_hits_now(cover_id, cfg)
+        except Exception:
+            _LOGGER.exception("Sun calculation failed for %s", cover_id)
+            snapshot["sun_hit"] = False
         snapshot["sunlit_fraction"] = runtime.get("sunlit_fraction", 0.0)
 
     def _maybe_reset_daily(self, runtime: dict[str, Any], now: datetime) -> None:
@@ -884,7 +959,10 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             sun_hit=bool(snapshot.get("sun_hit")),
             target=snapshot.get("target"),
         )
-        await self.notifier.async_send_test_log(message)
+        try:
+            await self.notifier.async_send_test_log(message)
+        except Exception:
+            _LOGGER.exception("Failed to send test skip log for %s", cover_id)
 
 
 def _iso(value: datetime | None) -> str | None:

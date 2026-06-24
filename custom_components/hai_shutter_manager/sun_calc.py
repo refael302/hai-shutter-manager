@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from astral import Observer
 from astral.sun import azimuth as astral_azimuth
@@ -39,6 +39,8 @@ def angular_difference(a: float, b: float) -> float:
 
 def sun_position(observer: Observer, when: datetime) -> tuple[float, float]:
     """Return (azimuth, elevation) for the observer at the given UTC datetime."""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
     return astral_azimuth(observer, when), astral_elevation(observer, when)
 
 
