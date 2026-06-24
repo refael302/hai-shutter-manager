@@ -39,7 +39,11 @@ class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
         )
 
     def _cover_name(self, cover_id: str) -> str:
-        state = self.hass.states.get(cover_id)
+        """Return a cover's friendly name (safe during entity __init__)."""
+        hass = self.coordinator.hass
+        if hass is None:
+            return cover_id
+        state = hass.states.get(cover_id)
         if state is not None:
             return state.attributes.get("friendly_name", cover_id)
         return cover_id
