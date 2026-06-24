@@ -1,4 +1,4 @@
-"""Sensors: action log and season."""
+"""Sensors: hub status and a single overview of all managed covers."""
 
 from __future__ import annotations
 
@@ -25,15 +25,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[SensorEntity] = [
-        LogSensor(coordinator, entry),
-        SeasonSensor(coordinator, entry),
-        TestModeSensor(coordinator, entry),
-        OutdoorTempSensor(coordinator, entry),
-    ]
-    for cover_id in coordinator.covers:
-        entities.append(RoomTempSensor(coordinator, entry, cover_id))
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            LogSensor(coordinator, entry),
+            SeasonSensor(coordinator, entry),
+            OutdoorTempSensor(coordinator, entry),
+            CoversOverviewSensor(coordinator, entry),
+        ]
+    )
 
 
 class LogSensor(HaiBaseEntity, SensorEntity):
@@ -76,22 +75,6 @@ class SeasonSensor(HaiBaseEntity, SensorEntity):
         return (self.coordinator.data or {}).get("season")
 
 
-class TestModeSensor(HaiBaseEntity, SensorEntity):
-    """Shows whether test mode is active."""
-
-    _attr_icon = "mdi:flask"
-    _attr_translation_key = "test_mode"
-
-    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_test_mode"
-        self._attr_name = "Test mode"
-
-    @property
-    def native_value(self) -> str:
-        return "active" if self.coordinator.test_mode else "off"
-
-
 class OutdoorTempSensor(HaiBaseEntity, SensorEntity):
     """Outdoor temperature used by the engine (override-aware in test mode)."""
 
@@ -111,26 +94,30 @@ class OutdoorTempSensor(HaiBaseEntity, SensorEntity):
         return (self.coordinator.data or {}).get("outdoor_temp")
 
 
-class RoomTempSensor(HaiBaseEntity, SensorEntity):
-    """Per-cover room temperature used by the engine (override-aware in test mode)."""
+class CoversOverviewSensor(HaiBaseEntity, SensorEntity):
+    """Single sensor summarising every managed cover (state, reason, config).
 
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-    _attr_icon = "mdi:home-thermometer"
+    Used by the Lovelace table card instead of one entity per cover.
+    """
 
-    def __init__(
-        self, coordinator: ShutterCoordinator, entry: ConfigEntry, cover_id: str
-    ) -> None:
+    _attr_icon = "mdi:window-shutter"
+    _attr_translation_key = "covers_overview"
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._cover_id = cover_id
-        self._attr_unique_id = f"{entry.entry_id}_{cover_id}_room_temp"
-        self._attr_name = f"{self._cover_name(cover_id)} room temperature"
-
-    def _snapshot(self) -> dict[str, Any]:
-        covers = (self.coordinator.data or {}).get("covers", {})
-        return covers.get(self._cover_id, {})
+        self._attr_unique_id = f"{entry.entry_id}_covers_overview"
+        self._attr_name = "Covers overview"
 
     @property
-    def native_value(self) -> float | None:
-        return self._snapshot().get("room_temp")
+    def native_value(self) -> int:
+        covers = (self.coordinator.data or {}).get("covers", {})
+        return len(covers)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        covers = data.get("covers", {})
+        return {
+            "test_mode": data.get("test_mode", False),
+            "covers": covers,
+        }

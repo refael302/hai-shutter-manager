@@ -23,12 +23,16 @@
           "direction": "Direction",
           "eave_length": "Eave / awning length (cm)",
           "window_height": "Window height (cm)",
+          "fov": "Field of view (degrees)",
           "desired_temp": "Desired temperature (C)",
           "action_delay_hours": "Delay between actions (hours)",
           "max_moves_per_day": "Max moves per day",
+          "enabled": "Automation enabled",
           "close_evening": "Close in the evening",
           "open_morning": "Open in the morning",
-          "close_rain": "Close on rain"
+          "close_rain": "Close on rain",
+          "temp_sensor": "Room temperature sensor (optional)",
+          "test_room_temp": "Test room temperature override (optional)"
         }
       }
     },
@@ -40,10 +44,9 @@
   "options": {
     "step": {
       "init": {
-        "title": "HAI Shutter Manager settings",
-        "description": "Update hub settings and the set of managed shutters.",
+        "title": "Hub settings",
+        "description": "Telegram, weather sensors, location and test mode.",
         "data": {
-          "covers": "Managed shutters",
           "telegram_chat_id": "Telegram chat id",
           "telegram_bot_token": "Telegram bot token",
           "telegram_notify_service": "Telegram notify service (alternative)",
@@ -54,19 +57,56 @@
           "test_mode": "Test mode (virtual shutters, no real moves)"
         }
       },
-      "cover": {
+      "covers": {
+        "title": "Managed shutters",
+        "description": "Choose which shutters this integration controls.",
+        "data": {
+          "covers": "Managed shutters"
+        }
+      },
+      "cover_new": {
         "title": "Configure {cover}",
-        "description": "Set direction and behavior for {cover}.",
+        "description": "Initial setup for a newly added shutter.",
         "data": {
           "direction": "Direction",
           "eave_length": "Eave / awning length (cm)",
           "window_height": "Window height (cm)",
+          "fov": "Field of view (degrees)",
           "desired_temp": "Desired temperature (C)",
           "action_delay_hours": "Delay between actions (hours)",
           "max_moves_per_day": "Max moves per day",
+          "enabled": "Automation enabled",
           "close_evening": "Close in the evening",
           "open_morning": "Open in the morning",
-          "close_rain": "Close on rain"
+          "close_rain": "Close on rain",
+          "temp_sensor": "Room temperature sensor (optional)",
+          "test_room_temp": "Test room temperature override (optional)"
+        }
+      },
+      "pick_cover": {
+        "title": "Configure a shutter",
+        "description": "Pick a shutter to view or change its settings, or choose Done to save.",
+        "data": {
+          "cover": "Shutter"
+        }
+      },
+      "edit_cover": {
+        "title": "Configure {cover}",
+        "description": "Update settings for {cover}. Save returns to the shutter list.",
+        "data": {
+          "direction": "Direction",
+          "eave_length": "Eave / awning length (cm)",
+          "window_height": "Window height (cm)",
+          "fov": "Field of view (degrees)",
+          "desired_temp": "Desired temperature (C)",
+          "action_delay_hours": "Delay between actions (hours)",
+          "max_moves_per_day": "Max moves per day",
+          "enabled": "Automation enabled",
+          "close_evening": "Close in the evening",
+          "open_morning": "Open in the morning",
+          "close_rain": "Close on rain",
+          "temp_sensor": "Room temperature sensor (optional)",
+          "test_room_temp": "Test room temperature override (optional)"
         }
       }
     }
@@ -75,8 +115,8 @@
     "sensor": {
       "action_log": { "name": "Action log" },
       "season": { "name": "Season" },
-      "test_mode": { "name": "Test mode" },
-      "outdoor_temp": { "name": "Outdoor temperature" }
+      "outdoor_temp": { "name": "Outdoor temperature" },
+      "covers_overview": { "name": "Covers overview" }
     },
     "binary_sensor": {
       "day_night": { "name": "Daytime" },
@@ -87,8 +127,9 @@
       "test_season": { "name": "Test season override" },
       "test_is_day": { "name": "Test daytime override" },
       "test_is_raining": { "name": "Test rain override" },
-      "test_use_sun_override": { "name": "Test sun calculation" }
-    },
-    "switch": {}
+      "test_use_sun_override": { "name": "Test sun calculation" },
+      "test_active_cover": { "name": "Test active cover" },
+      "test_virtual_state": { "name": "Test virtual state" }
+    }
   }
 }

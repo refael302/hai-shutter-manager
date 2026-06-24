@@ -23,6 +23,8 @@ from .const import (
     CONF_DESIRED_TEMP,
     CONF_DIRECTION,
     CONF_EAVE_LENGTH,
+    CONF_ENABLED,
+    CONF_FOV,
     CONF_LOCATION,
     CONF_MAX_MOVES_PER_DAY,
     CONF_NOTIFY_LEVELS,
@@ -32,14 +34,18 @@ from .const import (
     CONF_TELEGRAM_BOT_TOKEN,
     CONF_TELEGRAM_CHAT_ID,
     CONF_TELEGRAM_NOTIFY_SERVICE,
+    CONF_TEMP_SENSOR,
     CONF_TEST_MODE,
+    CONF_TEST_ROOM_TEMP,
     CONF_WINDOW_HEIGHT,
     CONFIG_VERSION,
     DEFAULT_ACTION_DELAY,
     DEFAULT_CLOSE_EVENING,
     DEFAULT_CLOSE_RAIN,
     DEFAULT_DESIRED_TEMP,
+    DEFAULT_ENABLED,
     DEFAULT_EAVE_LENGTH,
+    DEFAULT_FOV,
     DEFAULT_MAX_MOVES_PER_DAY,
     DEFAULT_OPEN_MORNING,
     DEFAULT_TEST_MODE,
@@ -51,6 +57,8 @@ from .const import (
     PRIORITY_NORMAL,
 )
 from .location import location_form_default, normalize_location
+
+_DONE = "__done__"
 
 
 def _available_covers(hass) -> dict[str, str]:
@@ -140,6 +148,9 @@ def _cover_schema(defaults: dict[str, Any]) -> vol.Schema:
                 default=defaults.get(CONF_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT),
             ): vol.Coerce(float),
             vol.Required(
+                CONF_FOV, default=defaults.get(CONF_FOV, DEFAULT_FOV)
+            ): vol.Coerce(float),
+            vol.Required(
                 CONF_DESIRED_TEMP,
                 default=defaults.get(CONF_DESIRED_TEMP, DEFAULT_DESIRED_TEMP),
             ): vol.Coerce(float),
@@ -154,6 +165,10 @@ def _cover_schema(defaults: dict[str, Any]) -> vol.Schema:
                 ),
             ): vol.Coerce(int),
             vol.Required(
+                CONF_ENABLED,
+                default=defaults.get(CONF_ENABLED, DEFAULT_ENABLED),
+            ): bool,
+            vol.Required(
                 CONF_CLOSE_EVENING,
                 default=defaults.get(CONF_CLOSE_EVENING, DEFAULT_CLOSE_EVENING),
             ): bool,
@@ -165,7 +180,47 @@ def _cover_schema(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_CLOSE_RAIN,
                 default=defaults.get(CONF_CLOSE_RAIN, DEFAULT_CLOSE_RAIN),
             ): bool,
+            vol.Optional(
+                CONF_TEMP_SENSOR,
+                default=defaults.get(CONF_TEMP_SENSOR, ""),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(
+                CONF_TEST_ROOM_TEMP,
+                default=defaults.get(CONF_TEST_ROOM_TEMP),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5,
+                    max=40,
+                    step=0.5,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
         }
+    )
+
+
+def _normalize_cover_input(user_input: dict[str, Any]) -> dict[str, Any]:
+    cover = dict(user_input)
+    if cover.get(CONF_TEMP_SENSOR) in ("", None):
+        cover[CONF_TEMP_SENSOR] = None
+    if cover.get(CONF_TEST_ROOM_TEMP) in ("", None):
+        cover.pop(CONF_TEST_ROOM_TEMP, None)
+    return cover
+
+
+def cv_multi_select(options: dict[str, str]):
+    """Wrap a multi-select selector for entity ids."""
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=[
+                selector.SelectOptionDict(value=value, label=label)
+                for value, label in options.items()
+            ],
+            multiple=True,
+            mode=selector.SelectSelectorMode.LIST,
+        )
     )
 
 
@@ -209,7 +264,7 @@ class HaiShutterConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         current = self._queue[0]
         if user_input is not None:
-            self._covers[current] = user_input
+            self._covers[current] = _normalize_cover_input(user_input)
             self._queue.pop(0)
             if self._queue:
                 return await self.async_step_cover()
@@ -230,15 +285,15 @@ class HaiShutterConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class HaiShutterOptionsFlow(OptionsFlow):
-    """Manage hub settings and the set of managed covers."""
+    """Manage hub settings and per-shutter configuration."""
 
     def __init__(self, entry: ConfigEntry) -> None:
         self._entry = entry
-        self._queue: list[str] = []
-        self._new_covers: dict[str, dict[str, Any]] = {}
-        self._selected: list[str] = []
         self._names: dict[str, str] = {}
-        self._pending_options: dict[str, Any] = {}
+        self._pending_hub: dict[str, Any] = {}
+        self._pending_covers: dict[str, dict[str, Any]] = {}
+        self._new_covers_queue: list[str] = []
+        self._editing_cover: str | None = None
 
     def _existing_covers(self) -> dict[str, dict[str, Any]]:
         merged: dict[str, dict[str, Any]] = {}
@@ -255,7 +310,22 @@ class HaiShutterOptionsFlow(OptionsFlow):
         )
         return defaults
 
+    def _cover_defaults(self, cover_id: str) -> dict[str, Any]:
+        return dict(self._pending_covers.get(cover_id, {}))
+
     async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            self._pending_hub = _normalize_hub_input(self.hass, user_input)
+            return await self.async_step_covers()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_hub_schema(self.hass, self._hub_defaults()),
+        )
+
+    async def async_step_covers(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         available = _available_covers(self.hass)
@@ -263,69 +333,107 @@ class HaiShutterOptionsFlow(OptionsFlow):
         self._names = available
 
         if user_input is not None:
-            selected = user_input.pop(CONF_COVERS, [])
-            self._selected = list(selected)
-            hub_opts = _normalize_hub_input(self.hass, user_input)
-
-            added = [c for c in selected if c not in existing]
-            self._queue = list(added)
-
-            # Start with hub options; covers are rebuilt below.
-            self._pending_options = hub_opts
-            if self._queue:
-                return await self.async_step_cover()
-            return self._finalize(existing)
+            selected = user_input.get(CONF_COVERS, [])
+            self._pending_covers = {
+                cover_id: dict(existing.get(cover_id, {}))
+                for cover_id in selected
+            }
+            self._new_covers_queue = [
+                cover_id
+                for cover_id in selected
+                if cover_id not in existing or not existing.get(cover_id)
+            ]
+            if self._new_covers_queue:
+                return await self.async_step_cover_new()
+            return await self.async_step_pick_cover()
 
         options_for_select = {**available, **{c: c for c in existing}}
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_COVERS, default=list(existing)
-                ): cv_multi_select(options_for_select),
-            }
-        ).extend(_hub_schema(self.hass, self._hub_defaults()).schema)
+        return self.async_show_form(
+            step_id="covers",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_COVERS, default=list(existing)
+                    ): cv_multi_select(options_for_select),
+                }
+            ),
+        )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
-
-    async def async_step_cover(
+    async def async_step_cover_new(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        current = self._queue[0]
+        current = self._new_covers_queue[0]
         if user_input is not None:
-            self._new_covers[current] = user_input
-            self._queue.pop(0)
-            if self._queue:
-                return await self.async_step_cover()
-            return self._finalize(self._existing_covers())
+            self._pending_covers[current] = _normalize_cover_input(user_input)
+            self._new_covers_queue.pop(0)
+            if self._new_covers_queue:
+                return await self.async_step_cover_new()
+            return await self.async_step_pick_cover()
 
         return self.async_show_form(
-            step_id="cover",
+            step_id="cover_new",
             data_schema=_cover_schema({}),
             description_placeholders={"cover": self._names.get(current, current)},
         )
 
-    def _finalize(self, existing: dict[str, dict[str, Any]]) -> ConfigFlowResult:
-        kept = {
-            cover_id: cfg
-            for cover_id, cfg in existing.items()
-            if cover_id in self._selected
-        }
-        kept.update(self._new_covers)
+    async def async_step_pick_cover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            choice = user_input["cover"]
+            if choice == _DONE:
+                return self._finalize()
+            self._editing_cover = choice
+            return await self.async_step_edit_cover()
 
-        options = dict(self._pending_options)
-        options[CONF_COVERS] = kept
-        return self.async_create_entry(title="", data=options)
+        if not self._pending_covers:
+            return self._finalize()
 
-
-def cv_multi_select(options: dict[str, str]):
-    """Wrap a multi-select selector for entity ids."""
-    return selector.SelectSelector(
-        selector.SelectSelectorConfig(
-            options=[
-                selector.SelectOptionDict(value=value, label=label)
-                for value, label in options.items()
-            ],
-            multiple=True,
-            mode=selector.SelectSelectorMode.LIST,
+        options = [
+            selector.SelectOptionDict(
+                value=cover_id,
+                label=self._names.get(cover_id, cover_id),
+            )
+            for cover_id in sorted(self._pending_covers)
+        ]
+        options.append(
+            selector.SelectOptionDict(value=_DONE, label="Done — save settings")
         )
-    )
+
+        return self.async_show_form(
+            step_id="pick_cover",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("cover"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=options,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_edit_cover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        cover_id = self._editing_cover
+        if cover_id is None or cover_id not in self._pending_covers:
+            return await self.async_step_pick_cover()
+
+        if user_input is not None:
+            self._pending_covers[cover_id] = _normalize_cover_input(user_input)
+            return await self.async_step_pick_cover()
+
+        return self.async_show_form(
+            step_id="edit_cover",
+            data_schema=_cover_schema(self._cover_defaults(cover_id)),
+            description_placeholders={
+                "cover": self._names.get(cover_id, cover_id),
+            },
+        )
+
+    def _finalize(self) -> ConfigFlowResult:
+        options = dict(self._pending_hub)
+        options[CONF_COVERS] = self._pending_covers
+        return self.async_create_entry(title="", data=options)

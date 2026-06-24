@@ -4,6 +4,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-06-25
+
+### Changed
+
+- **Per-cover settings are config-only** — direction, delays, temperatures, toggles
+  and automation enable are no longer exposed as separate entities per shutter.
+  Edit them via **Settings → Devices & Services → HAI Shutter Manager → Configure**:
+  1. Hub settings (Telegram, sensors, location)
+  2. Managed shutters list
+  3. Pick a shutter → edit its settings → repeat or Done
+- Replaced per-cover entities with a single **Covers overview** sensor (status for
+  all shutters in attributes; used by the table card).
+- Test mode uses one **Test active cover** + **Test virtual state** control instead
+  of one select entity per shutter.
+- Removed the Switch platform (automation toggle moved to cover config).
+
+### Removed
+
+- Per-cover number, switch, binary_sensor and room-temperature sensor entities.
+
 ## [0.5.4] - 2026-06-25
 
 ### Fixed

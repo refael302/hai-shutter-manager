@@ -1,4 +1,4 @@
-"""Select entities for test-mode manual overrides."""
+"""Select entities for test-mode manual overrides (hub level only)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CONF_TEST_ACTIVE_COVER,
     CONF_TEST_IS_DAY,
     CONF_TEST_IS_RAINING,
     CONF_TEST_MODE,
@@ -28,6 +29,7 @@ _TEST_DAY_OPTIONS = ("day", "night")
 _TEST_RAIN_OPTIONS = ("dry", "rain")
 _TEST_SUN_OPTIONS = ("automatic", "manual")
 _TEST_MODE_OPTIONS = ("off", "active")
+_TEST_STATE_OPTIONS = (TARGET_OPEN, TARGET_CLOSED)
 
 
 async def async_setup_entry(
@@ -36,16 +38,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[SelectEntity] = [
-        TestModeSelect(coordinator, entry),
-        TestSeasonSelect(coordinator, entry),
-        TestIsDaySelect(coordinator, entry),
-        TestIsRainingSelect(coordinator, entry),
-        TestUseSunOverrideSelect(coordinator, entry),
-    ]
-    for cover_id in coordinator.covers:
-        entities.append(TestShutterStateSelect(coordinator, entry, cover_id))
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            TestModeSelect(coordinator, entry),
+            TestSeasonSelect(coordinator, entry),
+            TestIsDaySelect(coordinator, entry),
+            TestIsRainingSelect(coordinator, entry),
+            TestUseSunOverrideSelect(coordinator, entry),
+            TestActiveCoverSelect(coordinator, entry),
+            TestVirtualStateSelect(coordinator, entry),
+        ]
+    )
 
 
 class TestModeSelect(HaiBaseEntity, SelectEntity):
@@ -182,29 +185,71 @@ class TestUseSunOverrideSelect(HaiBaseEntity, SelectEntity):
         await self.coordinator.async_request_refresh()
 
 
-class TestShutterStateSelect(HaiBaseEntity, SelectEntity):
-    """Manually set a cover's virtual open/closed state while test mode is active."""
+class TestActiveCoverSelect(HaiBaseEntity, SelectEntity):
+    """Pick which managed cover test actions apply to."""
 
     _attr_icon = "mdi:window-shutter"
-    _attr_options = [TARGET_OPEN, TARGET_CLOSED]
 
-    def __init__(
-        self, coordinator: ShutterCoordinator, entry: ConfigEntry, cover_id: str
-    ) -> None:
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._cover_id = cover_id
-        self._attr_unique_id = f"{entry.entry_id}_{cover_id}_test_state"
-        self._attr_name = f"{self._cover_name(cover_id)} test shutter state"
+        self._attr_unique_id = f"{entry.entry_id}_test_active_cover"
+        self._attr_name = "Test active cover"
+        self._attr_translation_key = "test_active_cover"
 
     @property
     def available(self) -> bool:
-        return self.coordinator.test_mode
+        return self.coordinator.test_mode and bool(self.coordinator.covers)
+
+    @property
+    def options(self) -> list[str]:
+        return list(self.coordinator.covers.keys())
 
     @property
     def current_option(self) -> str | None:
-        covers = (self.coordinator.data or {}).get("covers", {})
-        snapshot = covers.get(self._cover_id, {})
-        return snapshot.get("virtual_state") or snapshot.get("state")
+        active = self.coordinator.hub.get(CONF_TEST_ACTIVE_COVER)
+        if active in self.coordinator.covers:
+            return str(active)
+        covers = list(self.coordinator.covers.keys())
+        return covers[0] if covers else None
 
     async def async_select_option(self, option: str) -> None:
-        await self.coordinator.async_set_virtual_state(self._cover_id, option)
+        await self.coordinator.async_set_hub_option(CONF_TEST_ACTIVE_COVER, option)
+
+
+class TestVirtualStateSelect(HaiBaseEntity, SelectEntity):
+    """Set the virtual open/closed state of the active test cover."""
+
+    _attr_icon = "mdi:window-shutter-open"
+    _attr_options = list(_TEST_STATE_OPTIONS)
+    _attr_translation_key = "test_virtual_state"
+
+    def __init__(self, coordinator: ShutterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_test_virtual_state"
+        self._attr_name = "Test virtual state"
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.test_mode and bool(self._active_cover())
+
+    def _active_cover(self) -> str | None:
+        active = self.coordinator.hub.get(CONF_TEST_ACTIVE_COVER)
+        if active in self.coordinator.covers:
+            return str(active)
+        covers = list(self.coordinator.covers.keys())
+        return covers[0] if covers else None
+
+    @property
+    def current_option(self) -> str | None:
+        cover_id = self._active_cover()
+        if cover_id is None:
+            return None
+        covers = (self.coordinator.data or {}).get("covers", {})
+        snapshot = covers.get(cover_id, {})
+        return snapshot.get("virtual_state") or snapshot.get("state") or TARGET_CLOSED
+
+    async def async_select_option(self, option: str) -> None:
+        cover_id = self._active_cover()
+        if cover_id is None:
+            return
+        await self.coordinator.async_set_virtual_state(cover_id, option)

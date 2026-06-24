@@ -7,7 +7,7 @@ from datetime import timedelta
 DOMAIN = "hai_shutter_manager"
 INTEGRATION_ICON = "mdi:window-shutter-open"
 
-PLATFORMS: list[str] = ["sensor", "binary_sensor", "switch", "number", "select"]
+PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "select"]
 
 CONFIG_VERSION = 1
 
@@ -45,6 +45,7 @@ CONF_TEST_SUN_AZIMUTH = "test_sun_azimuth"
 CONF_TEST_SUN_ELEVATION = "test_sun_elevation"
 CONF_TEST_USE_SUN_OVERRIDE = "test_use_sun_override"
 CONF_TEST_ROOM_TEMP = "test_room_temp"
+CONF_TEST_ACTIVE_COVER = "test_active_cover"
 
 # ---------------------------------------------------------------------------
 # Per-cover config keys

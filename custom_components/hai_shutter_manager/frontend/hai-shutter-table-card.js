@@ -37,17 +37,45 @@ class HaiShutterTableCard extends HTMLElement {
 
   _rows() {
     if (!this._hass) return [];
-    const rows = [];
-    for (const entityId of Object.keys(this._hass.states)) {
-      const state = this._hass.states[entityId];
-      const attrs = state.attributes || {};
-      if (!attrs.cover_id) continue;
-      rows.push({ entityId, state, attrs });
-    }
-    rows.sort((a, b) =>
+    const overview = this._overviewState();
+    if (!overview) return [];
+    const covers = overview.attributes.covers || {};
+    return Object.entries(covers).map(([coverId, snapshot]) => {
+      const cfg = snapshot.config || {};
+      return {
+        entityId: overview.entity_id,
+        state: { state: snapshot.state === "open" ? "on" : "off" },
+        attrs: {
+          cover_id: coverId,
+          available: snapshot.available,
+          target: snapshot.target,
+          reason: snapshot.reason,
+          manual_until: snapshot.manual_until,
+          last_action: snapshot.last_action,
+          sun_hit: snapshot.sun_hit,
+          sunlit_fraction: snapshot.sunlit_fraction,
+          moves_today: snapshot.moves_today,
+          test_mode: snapshot.test_mode,
+          virtual_state: snapshot.virtual_state,
+          ...cfg,
+        },
+      };
+    }).sort((a, b) =>
       (a.attrs.cover_id || "").localeCompare(b.attrs.cover_id || "")
     );
-    return rows;
+  }
+
+  _overviewState() {
+    if (this._config.overview_entity) {
+      return this._hass.states[this._config.overview_entity];
+    }
+    for (const entityId of Object.keys(this._hass.states)) {
+      const state = this._hass.states[entityId];
+      if (state.attributes && state.attributes.covers) {
+        return state;
+      }
+    }
+    return null;
   }
 
   _callSet(coverId, key, value) {
@@ -126,7 +154,8 @@ class HaiShutterTableCard extends HTMLElement {
       .join("");
 
     const title = this._config.title || "Shutter Manager";
-    const testActive = rows.some((r) => r.attrs.test_mode);
+    const overview = this._overviewState();
+    const testActive = overview?.attributes?.test_mode;
     const empty = rows.length
       ? ""
       : `<div class="empty">No managed shutters found. Add some via the integration options.</div>`;

@@ -1,4 +1,4 @@
-"""Binary sensors: day/night, rain, and per-cover open/closed state."""
+"""Binary sensors: day/night and rain (hub level only)."""
 
 from __future__ import annotations
 
@@ -23,13 +23,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ShutterCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[BinarySensorEntity] = [
-        DayNightSensor(coordinator, entry),
-        RainSensor(coordinator, entry),
-    ]
-    for cover_id in coordinator.covers:
-        entities.append(CoverStateSensor(coordinator, entry, cover_id))
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            DayNightSensor(coordinator, entry),
+            RainSensor(coordinator, entry),
+        ]
+    )
 
 
 class DayNightSensor(HaiBaseEntity, BinarySensorEntity):
@@ -69,50 +68,3 @@ class RainSensor(HaiBaseEntity, BinarySensorEntity):
             "rain_forecast_soon": bool(data.get("rain_forecast_soon")),
             "open_meteo_available": bool(data.get("open_meteo_available")),
         }
-
-
-class CoverStateSensor(HaiBaseEntity, BinarySensorEntity):
-    """Mirrors a cover's open/closed state and exposes its full config.
-
-    The Lovelace card reads its attributes to render the table.
-    """
-
-    _attr_device_class = BinarySensorDeviceClass.OPENING
-
-    def __init__(
-        self, coordinator: ShutterCoordinator, entry: ConfigEntry, cover_id: str
-    ) -> None:
-        super().__init__(coordinator, entry)
-        self._cover_id = cover_id
-        self._attr_unique_id = f"{entry.entry_id}_{cover_id}_state"
-        self._attr_name = f"{self._cover_name(cover_id)} state"
-
-    def _snapshot(self) -> dict[str, Any]:
-        covers = (self.coordinator.data or {}).get("covers", {})
-        return covers.get(self._cover_id, {})
-
-    @property
-    def available(self) -> bool:
-        return self._snapshot().get("available", False)
-
-    @property
-    def is_on(self) -> bool:
-        return self._snapshot().get("state") == "open"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        snapshot = self._snapshot()
-        attrs: dict[str, Any] = {
-            "cover_id": self._cover_id,
-            "target": snapshot.get("target"),
-            "reason": snapshot.get("reason"),
-            "manual_until": snapshot.get("manual_until"),
-            "last_action": snapshot.get("last_action"),
-            "sun_hit": snapshot.get("sun_hit"),
-            "sunlit_fraction": snapshot.get("sunlit_fraction"),
-            "moves_today": snapshot.get("moves_today"),
-            "test_mode": snapshot.get("test_mode", False),
-            "virtual_state": snapshot.get("virtual_state"),
-        }
-        attrs.update(snapshot.get("config", {}))
-        return attrs

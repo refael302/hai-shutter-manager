@@ -23,12 +23,16 @@
           "direction": "כיוון",
           "eave_length": "אורך גגון (ס\"מ)",
           "window_height": "גובה חלון (ס\"מ)",
+          "fov": "שדה ראייה (מעלות)",
           "desired_temp": "טמפרטורה רצויה (C)",
           "action_delay_hours": "השהיה בין פעולות (שעות)",
           "max_moves_per_day": "מקסימום תנועות ביום",
+          "enabled": "אוטומציה פעילה",
           "close_evening": "סגירה בערב",
           "open_morning": "פתיחה בבוקר",
-          "close_rain": "סגירה בגשם"
+          "close_rain": "סגירה בגשם",
+          "temp_sensor": "חיישן טמפרטורת חדר (אופציונלי)",
+          "test_room_temp": "עקיפת טמפרטורת חדר לבדיקות (אופציונלי)"
         }
       }
     },
@@ -40,10 +44,9 @@
   "options": {
     "step": {
       "init": {
-        "title": "הגדרות HAI Shutter Manager",
-        "description": "עדכן הגדרות מערכת ואת רשימת התריסים המנוהלים.",
+        "title": "הגדרות מערכת",
+        "description": "טלגרם, חיישני מזג אוויר, מיקום ומצב בדיקות.",
         "data": {
-          "covers": "תריסים מנוהלים",
           "telegram_chat_id": "Chat ID של טלגרם",
           "telegram_bot_token": "טוקן בוט טלגרם",
           "telegram_notify_service": "שירות notify של טלגרם (חלופה)",
@@ -54,19 +57,56 @@
           "test_mode": "מצב בדיקות (תריסים וירטואליים, ללא תנועה אמיתית)"
         }
       },
-      "cover": {
+      "covers": {
+        "title": "תריסים מנוהלים",
+        "description": "בחר אילו תריסים האינטגרציה תנהל.",
+        "data": {
+          "covers": "תריסים מנוהלים"
+        }
+      },
+      "cover_new": {
         "title": "הגדרת {cover}",
-        "description": "הגדר כיוון והתנהגות עבור {cover}.",
+        "description": "הגדרה ראשונית לתריס חדש שנוסף.",
         "data": {
           "direction": "כיוון",
           "eave_length": "אורך גגון (ס\"מ)",
           "window_height": "גובה חלון (ס\"מ)",
+          "fov": "שדה ראייה (מעלות)",
           "desired_temp": "טמפרטורה רצויה (C)",
           "action_delay_hours": "השהיה בין פעולות (שעות)",
           "max_moves_per_day": "מקסימום תנועות ביום",
+          "enabled": "אוטומציה פעילה",
           "close_evening": "סגירה בערב",
           "open_morning": "פתיחה בבוקר",
-          "close_rain": "סגירה בגשם"
+          "close_rain": "סגירה בגשם",
+          "temp_sensor": "חיישן טמפרטורת חדר (אופציונלי)",
+          "test_room_temp": "עקיפת טמפרטורת חדר לבדיקות (אופציונלי)"
+        }
+      },
+      "pick_cover": {
+        "title": "הגדרת תריס",
+        "description": "בחר תריס לעריכה, או \"סיום\" לשמירה.",
+        "data": {
+          "cover": "תריס"
+        }
+      },
+      "edit_cover": {
+        "title": "הגדרת {cover}",
+        "description": "עדכון הגדרות עבור {cover}. השמירה מחזירה לרשימת התריסים.",
+        "data": {
+          "direction": "כיוון",
+          "eave_length": "אורך גגון (ס\"מ)",
+          "window_height": "גובה חלון (ס\"מ)",
+          "fov": "שדה ראייה (מעלות)",
+          "desired_temp": "טמפרטורה רצויה (C)",
+          "action_delay_hours": "השהיה בין פעולות (שעות)",
+          "max_moves_per_day": "מקסימום תנועות ביום",
+          "enabled": "אוטומציה פעילה",
+          "close_evening": "סגירה בערב",
+          "open_morning": "פתיחה בבוקר",
+          "close_rain": "סגירה בגשם",
+          "temp_sensor": "חיישן טמפרטורת חדר (אופציונלי)",
+          "test_room_temp": "עקיפת טמפרטורת חדר לבדיקות (אופציונלי)"
         }
       }
     }
@@ -75,8 +115,8 @@
     "sensor": {
       "action_log": { "name": "יומן פעולות" },
       "season": { "name": "עונה" },
-      "test_mode": { "name": "מצב בדיקות" },
-      "outdoor_temp": { "name": "טמפרטורה חיצונית" }
+      "outdoor_temp": { "name": "טמפרטורה חיצונית" },
+      "covers_overview": { "name": "סקירת תריסים" }
     },
     "binary_sensor": {
       "day_night": { "name": "יום" },
@@ -87,8 +127,9 @@
       "test_season": { "name": "עונת בדיקה" },
       "test_is_day": { "name": "בדיקה: יום/לילה" },
       "test_is_raining": { "name": "בדיקה: גשם" },
-      "test_use_sun_override": { "name": "בדיקה: חישוב שמש" }
-    },
-    "switch": {}
+      "test_use_sun_override": { "name": "בדיקה: חישוב שמש" },
+      "test_active_cover": { "name": "תריס פעיל לבדיקה" },
+      "test_virtual_state": { "name": "מצב וירטואלי לבדיקה" }
+    }
   }
 }

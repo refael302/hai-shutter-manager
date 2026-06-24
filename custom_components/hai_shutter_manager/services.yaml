@@ -1,8 +1,9 @@
 set_cover_option:
   name: Set cover option
   description: >-
-    Update a single per-cover setting (used by the Lovelace table card to edit
-    settings inline).
+    Programmatically update a per-cover setting. Prefer the integration options
+    flow (Configure → pick a shutter) for normal editing. Also used by the
+    Lovelace table card.
   fields:
     cover_id:
       name: Cover entity id
