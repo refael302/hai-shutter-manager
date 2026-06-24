@@ -85,14 +85,11 @@ class TestSeasonSelect(HaiBaseEntity, SelectEntity):
         self._attr_options = list(SEASON_OPTIONS)
 
     @property
-    def available(self) -> bool:
-        return self.coordinator.test_mode
-
-    @property
     def current_option(self) -> str | None:
         return str(self.coordinator.hub.get(CONF_TEST_SEASON, SEASON_OPTIONS[2]))
 
     async def async_select_option(self, option: str) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(CONF_TEST_SEASON, option)
         await self.coordinator.async_request_refresh()
 
@@ -110,15 +107,12 @@ class TestIsDaySelect(HaiBaseEntity, SelectEntity):
         self._attr_name = "Test daytime override"
 
     @property
-    def available(self) -> bool:
-        return self.coordinator.test_mode
-
-    @property
     def current_option(self) -> str | None:
         is_day = bool(self.coordinator.hub.get(CONF_TEST_IS_DAY, DEFAULT_TEST_IS_DAY))
         return "day" if is_day else "night"
 
     async def async_select_option(self, option: str) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(CONF_TEST_IS_DAY, option == "day")
         await self.coordinator.async_request_refresh()
 
@@ -136,10 +130,6 @@ class TestIsRainingSelect(HaiBaseEntity, SelectEntity):
         self._attr_name = "Test rain override"
 
     @property
-    def available(self) -> bool:
-        return self.coordinator.test_mode
-
-    @property
     def current_option(self) -> str | None:
         raining = bool(
             self.coordinator.hub.get(CONF_TEST_IS_RAINING, DEFAULT_TEST_IS_RAINING)
@@ -147,6 +137,7 @@ class TestIsRainingSelect(HaiBaseEntity, SelectEntity):
         return "rain" if raining else "dry"
 
     async def async_select_option(self, option: str) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(
             CONF_TEST_IS_RAINING, option == "rain"
         )
@@ -166,10 +157,6 @@ class TestUseSunOverrideSelect(HaiBaseEntity, SelectEntity):
         self._attr_name = "Test sun calculation"
 
     @property
-    def available(self) -> bool:
-        return self.coordinator.test_mode
-
-    @property
     def current_option(self) -> str | None:
         manual = bool(
             self.coordinator.hub.get(
@@ -179,6 +166,7 @@ class TestUseSunOverrideSelect(HaiBaseEntity, SelectEntity):
         return "manual" if manual else "automatic"
 
     async def async_select_option(self, option: str) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(
             CONF_TEST_USE_SUN_OVERRIDE, option == "manual"
         )
@@ -198,7 +186,7 @@ class TestActiveCoverSelect(HaiBaseEntity, SelectEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.test_mode and bool(self.coordinator.covers)
+        return bool(self.coordinator.covers)
 
     @property
     def options(self) -> list[str]:
@@ -213,6 +201,7 @@ class TestActiveCoverSelect(HaiBaseEntity, SelectEntity):
         return covers[0] if covers else None
 
     async def async_select_option(self, option: str) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(CONF_TEST_ACTIVE_COVER, option)
 
 
@@ -230,7 +219,7 @@ class TestVirtualStateSelect(HaiBaseEntity, SelectEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.test_mode and bool(self._active_cover())
+        return self._active_cover() is not None
 
     def _active_cover(self) -> str | None:
         active = self.coordinator.hub.get(CONF_TEST_ACTIVE_COVER)
@@ -252,4 +241,5 @@ class TestVirtualStateSelect(HaiBaseEntity, SelectEntity):
         cover_id = self._active_cover()
         if cover_id is None:
             return
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_virtual_state(cover_id, option)

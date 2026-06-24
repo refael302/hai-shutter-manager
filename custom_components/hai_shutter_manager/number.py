@@ -102,10 +102,6 @@ class HaiTestHubNumber(HaiBaseEntity, NumberEntity):
         self._attr_native_step = description.step
 
     @property
-    def available(self) -> bool:
-        return self.coordinator.test_mode
-
-    @property
     def native_value(self) -> float:
         value = self.coordinator.hub.get(self._description.key)
         if value is None:
@@ -116,5 +112,6 @@ class HaiTestHubNumber(HaiBaseEntity, NumberEntity):
             return self._description.default
 
     async def async_set_native_value(self, value: float) -> None:
+        await self.coordinator.async_ensure_test_mode()
         await self.coordinator.async_set_hub_option(self._description.key, value)
         await self.coordinator.async_request_refresh()

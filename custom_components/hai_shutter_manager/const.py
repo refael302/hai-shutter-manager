@@ -9,7 +9,7 @@ INTEGRATION_ICON = "mdi:window-shutter-open"
 
 PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "select"]
 
-CONFIG_VERSION = 1
+CONFIG_VERSION = 2
 
 # How often the decision engine runs.
 UPDATE_INTERVAL = timedelta(minutes=5)

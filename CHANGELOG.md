@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-06-25
+
+### Fixed
+
+- **Stale entities removed automatically** on load — orphaned per-cover entities
+  from older releases no longer appear grey/unavailable on the device page.
+- Test override controls (season, day/night, rain, temperatures, etc.) are always
+  interactive; editing any of them turns test mode on automatically.
+- Hub entities no longer go unavailable when a coordinator refresh hiccups.
+
 ## [0.6.0] - 2026-06-25
 
 ### Changed

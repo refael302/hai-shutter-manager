@@ -324,6 +324,11 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def test_mode(self) -> bool:
         return bool(self._hub.get(CONF_TEST_MODE))
 
+    async def async_ensure_test_mode(self) -> None:
+        """Turn on test mode when the user edits a test override."""
+        if not self.test_mode:
+            await self.async_set_hub_option(CONF_TEST_MODE, True)
+
     def has_cover(self, cover_id: str) -> bool:
         return cover_id in self._covers
 
@@ -365,7 +370,8 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_set_virtual_state(self, cover_id: str, state: str) -> None:
         """Manually set a cover's virtual state in test mode."""
-        if not self.test_mode or cover_id not in self._covers:
+        await self.async_ensure_test_mode()
+        if cover_id not in self._covers:
             return
         if state not in (TARGET_OPEN, TARGET_CLOSED):
             return

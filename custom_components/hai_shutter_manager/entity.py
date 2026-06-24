@@ -26,7 +26,8 @@ class HaiBaseEntity(CoordinatorEntity[ShutterCoordinator]):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.last_update_success or self.coordinator.data is not None
+        """Hub entities stay available while the integration is loaded."""
+        return True
 
     @property
     def device_info(self) -> DeviceInfo:

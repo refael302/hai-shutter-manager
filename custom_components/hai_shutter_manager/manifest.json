@@ -9,5 +9,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/refael302/hai-shutter-manager/issues",
   "requirements": ["astral>=2.2"],
-  "version": "0.6.0"
+  "version": "0.6.1"
 }

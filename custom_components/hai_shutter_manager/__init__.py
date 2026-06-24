@@ -19,6 +19,7 @@ from .const import (
     SERVICE_SET_VIRTUAL_STATE,
 )
 from .coordinator import ShutterCoordinator
+from .entity_registry_cleanup import cleanup_stale_entities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,6 +75,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.error("HAI Shutter Manager: no platforms loaded")
         return False
 
+    cleanup_stale_entities(hass, entry)
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     _async_register_services(hass)
@@ -104,7 +107,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate old config entries to the current version."""
     if entry.version > CONFIG_VERSION:
         return False
-    # No migrations yet; bump version handling lives here for future releases.
+
+    if entry.version < 2:
+        cleanup_stale_entities(hass, entry)
+        hass.config_entries.async_update_entry(entry, version=2)
+
     return True
 
 
