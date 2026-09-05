@@ -30,8 +30,8 @@ wear.
   the integration backs off for the configured delay.
 - **Motor protection**: per-shutter debounce (default 3 hours), idempotent
   commands, and a daily move limit.
-- **Custom Lovelace table card** to see and edit every setting, one row per
-  shutter.
+- **Custom Lovelace card** to see and edit every setting, one block per shutter
+  (fields wrap; no sideways scrolling).
 
 ## Installation (HACS)
 
