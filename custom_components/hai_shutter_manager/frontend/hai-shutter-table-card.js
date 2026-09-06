@@ -84,12 +84,13 @@ const STYLES = `
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   th, td {
     border-bottom: 1px solid var(--divider-color, #e0e0e0);
-    padding: 6px 8px;
+    padding: 6px 6px;
     text-align: center;
     vertical-align: middle;
+    white-space: nowrap;
   }
-  th { color: var(--secondary-text-color); font-weight: 600; white-space: nowrap; }
-  td.name-cell { text-align: start; min-width: 7em; }
+  th { color: var(--secondary-text-color); font-weight: 600; }
+  td.name-cell { text-align: start; min-width: 7em; white-space: normal; }
   .table-wrap.no-virtual .virtual-col { display: none; }
   .shutter {
     border: 1px solid var(--divider-color, #e0e0e0);
@@ -119,16 +120,18 @@ const STYLES = `
     align-items: center;
   }
   .field { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  td.field { display: table-cell; }
   .field label { color: var(--secondary-text-color); white-space: nowrap; }
   select.sel, input.num {
-    color: var(--primary-text-color);
-    background: var(--input-fill-color, var(--secondary-background-color, #eee));
-    border: 1px solid var(--divider-color, #ccc);
+    color: var(--primary-text-color, #111);
+    background: var(--input-fill-color, var(--secondary-background-color, #fff));
+    border: 1px solid var(--divider-color, #888);
     border-radius: 4px;
     padding: 4px 6px;
     font: inherit;
   }
   input.num { width: 4.5em; text-align: center; }
+  select.sel { min-width: 4.2em; }
   button.tog {
     cursor: pointer;
     border: 1px solid var(--divider-color, #ccc);
