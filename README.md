@@ -30,8 +30,8 @@ wear.
   the integration backs off for the configured delay.
 - **Motor protection**: per-shutter debounce (default 3 hours), idempotent
   commands, and a daily move limit.
-- **Custom Lovelace card** to see and edit every setting, one block per shutter
-  (fields wrap; no sideways scrolling).
+- **Custom Lovelace card** to see and edit every setting: a table on wide
+  dashboards, one wrapping block per shutter on phones (no sideways scrolling).
 
 ## Installation (HACS)
 
@@ -48,8 +48,10 @@ Copy `custom_components/hai_shutter_manager` into your Home Assistant
 ## The Lovelace card
 
 The card is registered automatically when the integration starts (storage-mode
-dashboards) or injected as extra JS (YAML resources). After install or update,
-restart Home Assistant, refresh the dashboard, and add this:
+dashboards) or injected as extra JS (YAML resources). On a wide dashboard it
+shows a table; on a phone or a narrow column it shows one card per shutter.
+After install or update, restart Home Assistant, refresh the dashboard, and
+add this:
 
 ```yaml
 type: custom:hai-shutter-table-card
