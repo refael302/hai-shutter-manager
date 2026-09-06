@@ -7,8 +7,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import CoreState, HomeAssistant, ServiceCall, callback
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
@@ -53,15 +52,11 @@ _SET_VIRTUAL_STATE_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the dashboard card once per Home Assistant instance."""
-
-    async def _register_frontend(_event=None) -> None:
+    """Register the dashboard card while the HTTP server can still take paths."""
+    try:
         await JSModuleRegistration(hass).async_register()
-
-    if hass.state is CoreState.running:
-        hass.async_create_task(_register_frontend())
-    else:
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register_frontend)
+    except Exception:
+        _LOGGER.exception("HAI Shutter Manager: dashboard card registration failed")
     return True
 
 

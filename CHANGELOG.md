@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-09-06
+
+### Fixed
+- **Dashboard card shows Configuration error after 0.6.3** — the last update
+  deleted the old `/local` or `/hacsfiles` Lovelace resource before the new
+  `/hai-shutter-manager/...` file was guaranteed to be served. Home Assistant
+  2026 also no longer uses `lovelace.mode`, and resource storage starts
+  unloaded (`loaded = False`), so the card was never re-registered. The card
+  is now served during integration setup, the new resource is created first,
+  and the old one is removed only after that succeeds. After update: restart
+  Home Assistant and refresh the dashboard (pull to refresh in the app).
+
 ## [0.6.3] - 2026-09-06
 
 ### Added

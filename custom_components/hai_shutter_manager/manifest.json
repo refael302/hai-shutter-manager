@@ -3,11 +3,11 @@
   "name": "HAI Shutter Manager",
   "codeowners": ["@refael302"],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "sun"],
+  "dependencies": ["frontend", "http", "lovelace", "sun"],
   "documentation": "https://github.com/refael302/hai-shutter-manager",
   "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/refael302/hai-shutter-manager/issues",
   "requirements": ["astral>=2.2"],
-  "version": "0.6.3"
+  "version": "0.6.4"
 }

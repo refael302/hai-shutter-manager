@@ -137,7 +137,11 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config || {};
+    if (!config || typeof config !== "object") {
+      this._config = {};
+      return;
+    }
+    this._config = config;
     if (this._built) {
       this._built = false;
       this._rowEls.clear();
@@ -397,6 +401,32 @@ class HaiShutterTableCard extends HTMLElement {
 
   _sync() {
     if (!this._hass) return;
+    try {
+      this._syncUnsafe();
+    } catch (err) {
+      console.error("hai-shutter-table-card failed to render", err);
+      this._showError(err);
+    }
+  }
+
+  _showError(err) {
+    const root = this._root();
+    root.innerHTML = `
+      <ha-card header="HAI Shutter Manager">
+        <div class="wrap">
+          <div class="empty">${this._t("empty")}</div>
+        </div>
+      </ha-card>
+      <style>${STYLES}</style>
+    `;
+    this._built = false;
+    this._rowEls.clear();
+    const empty = root.querySelector(".empty");
+    if (empty) empty.hidden = false;
+    void err;
+  }
+
+  _syncUnsafe() {
     this._ensureShell();
     this._card.header = this._config.title || this._t("title");
 

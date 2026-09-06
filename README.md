@@ -47,8 +47,9 @@ Copy `custom_components/hai_shutter_manager` into your Home Assistant
 
 ## The Lovelace card
 
-The card is registered automatically when the integration starts. After install
-or update, restart Home Assistant and add this to a dashboard:
+The card is registered automatically when the integration starts (storage-mode
+dashboards) or injected as extra JS (YAML resources). After install or update,
+restart Home Assistant, refresh the dashboard, and add this:
 
 ```yaml
 type: custom:hai-shutter-table-card
