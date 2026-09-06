@@ -110,9 +110,8 @@ class JSModuleRegistration:
             )
             return True
         except RuntimeError as err:
-            # Already registered on a reload is fine. "Too late" is not.
-            message = str(err).lower()
-            if "already" in message:
+            # Reload is fine. "HTTP server has already started" is not.
+            if "already registered" in str(err).lower():
                 return True
             _LOGGER.warning("Could not register card static path: %s", err)
             return False
