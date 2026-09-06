@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
+from pathlib import Path
 
 DOMAIN = "hai_shutter_manager"
 INTEGRATION_ICON = "mdi:window-shutter-open"
+
+INTEGRATION_VERSION = json.loads(
+    (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
+)["version"]
+FRONTEND_URL_BASE = "/hai-shutter-manager"
+FRONTEND_CARD_FILENAME = "hai-shutter-table-card.js"
 
 PLATFORMS: list[str] = ["sensor", "binary_sensor", "number", "select"]
 

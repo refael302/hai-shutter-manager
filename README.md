@@ -47,17 +47,22 @@ Copy `custom_components/hai_shutter_manager` into your Home Assistant
 
 ## The Lovelace card
 
-After installation, add the card resource (URL):
-
-```
-/hacsfiles/hai_shutter_manager/hai-shutter-table-card.js
-```
-
-(or the path where you copied `frontend/hai-shutter-table-card.js`), then add to a
-dashboard:
+The card is registered automatically when the integration starts. After install
+or update, restart Home Assistant and add this to a dashboard:
 
 ```yaml
 type: custom:hai-shutter-table-card
+```
+
+If you previously copied the file to `www/` or added `/local/...` /
+`/hacsfiles/...` as a resource, you can remove that old resource.
+
+YAML-mode dashboards need the resource listed once:
+
+```yaml
+resources:
+  - url: /hai-shutter-manager/hai-shutter-table-card.js
+    type: module
 ```
 
 ## Entities

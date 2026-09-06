@@ -7,8 +7,10 @@ import logging
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import CoreState, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONFIG_VERSION,
@@ -20,6 +22,9 @@ from .const import (
 )
 from .coordinator import ShutterCoordinator
 from .entity_registry_cleanup import cleanup_stale_entities
+from .frontend import JSModuleRegistration
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +50,19 @@ _SET_VIRTUAL_STATE_SCHEMA = vol.Schema(
         vol.Required("state"): vol.In(["open", "closed"]),
     }
 )
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the dashboard card once per Home Assistant instance."""
+
+    async def _register_frontend(_event=None) -> None:
+        await JSModuleRegistration(hass).async_register()
+
+    if hass.state is CoreState.running:
+        hass.async_create_task(_register_frontend())
+    else:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register_frontend)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
