@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - 2026-09-06
+
+### Changed
+- **Boolean fields are V / X** — the table cells no longer repeat the full
+  label (the column header already has it). On phone cards a short label
+  sits next to the same mark: ערב / בוקר / גשם / פעיל.
+
 ## [0.6.5] - 2026-09-06
 
 ### Changed

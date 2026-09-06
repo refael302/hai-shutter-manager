@@ -41,6 +41,10 @@ const I18N = {
     eave_length: "Eave cm",
     action_delay_hours: "Delay h",
     enabled: "Active",
+    close_evening_short: "Evening",
+    open_morning_short: "Morning",
+    close_rain_short: "Rain",
+    enabled_short: "Active",
   },
   he: {
     title: "מנהל תריסים",
@@ -60,6 +64,10 @@ const I18N = {
     eave_length: "גגון ס״מ",
     action_delay_hours: "השהיה ש׳",
     enabled: "פעיל",
+    close_evening_short: "ערב",
+    open_morning_short: "בוקר",
+    close_rain_short: "גשם",
+    enabled_short: "פעיל",
   },
 };
 
@@ -136,9 +144,12 @@ const STYLES = `
     cursor: pointer;
     border: 1px solid var(--divider-color, #ccc);
     border-radius: 16px;
-    padding: 4px 10px;
+    min-width: 2.1em;
+    padding: 4px 8px;
     font: inherit;
     font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
     color: var(--primary-text-color);
     background: var(--secondary-background-color, transparent);
     user-select: none;
@@ -148,7 +159,6 @@ const STYLES = `
     background: var(--primary-color, #03a9f4);
     color: var(--text-primary-color, #fff);
     border-color: transparent;
-    font-weight: 600;
   }
   @container hai-shutter (min-width: 840px) {
     .list { display: none; }
@@ -302,7 +312,10 @@ class HaiShutterTableCard extends HTMLElement {
   _fieldControlsHtml() {
     return FIELDS.map((field) => {
       if (field.type === "bool") {
-        return `<button type="button" class="tog" data-key="${field.key}"></button>`;
+        return `<div class="field" data-key="${field.key}">
+          <label></label>
+          <button type="button" class="tog" data-key="${field.key}"></button>
+        </div>`;
       }
       if (field.type === "number") {
         return `<div class="field" data-key="${field.key}">
@@ -437,9 +450,14 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   _paintBool(btn, on) {
+    const full = this._t(btn.dataset.key);
     btn.dataset.val = on ? "true" : "false";
     btn.classList.toggle("on", on);
-    btn.textContent = this._t(btn.dataset.key);
+    btn.textContent = on ? "V" : "X";
+    btn.title = full;
+    btn.setAttribute("aria-label", full);
+    const label = btn.parentElement?.querySelector("label");
+    if (label) label.textContent = this._t(`${btn.dataset.key}_short`);
   }
 
   _eachView(coverId, fn) {
