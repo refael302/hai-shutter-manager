@@ -52,7 +52,7 @@ class ClassifyResourcesTests(unittest.TestCase):
             frontend.card_url(),
             "/hai-shutter-manager/hai-shutter-table-card.js",
         )
-        self.assertTrue(frontend.versioned_url().endswith("?v=0.6.6"))
+        self.assertTrue(frontend.versioned_url().endswith("?v=0.6.7"))
 
     def test_splits_ours_and_legacy_copies(self) -> None:
         ours, legacy = frontend.classify_resources(
@@ -227,12 +227,14 @@ class CardFileTests(unittest.TestCase):
         self.assertIn('customElements.define("hai-shutter-table-card"', source)
         self.assertIn("setConfig(config)", source)
         self.assertIn("_syncUnsafe()", source)
-        self.assertIn("@container hai-shutter (min-width: 840px)", source)
+        self.assertIn("@container hai-shutter (min-width: 640px)", source)
         self.assertIn("table-wrap", source)
         self.assertIn("_tableTemplate", source)
         self.assertIn("_cardTemplate", source)
         self.assertIn('btn.textContent = on ? "V" : "X"', source)
         self.assertIn("close_evening_short", source)
+        self.assertIn("is-wide", source)
+        self.assertIn("return \"he\"", source)
 
 
 if __name__ == "__main__":

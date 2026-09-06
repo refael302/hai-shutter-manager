@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2026-09-06
+
+### Fixed
+- **Card language defaults to Hebrew** — the dashboard no longer follows
+  Home Assistant's English UI language, so titles and labels stay עברית
+  unless the card YAML sets `language: en`.
+- **Table appears on a normal desktop column** — layout follows the real
+  card width (640px) via ResizeObserver, not only a container query that
+  often stayed on phone cards inside Lovelace.
+
 ## [0.6.6] - 2026-09-06
 
 ### Changed

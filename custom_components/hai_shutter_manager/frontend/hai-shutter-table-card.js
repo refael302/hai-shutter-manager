@@ -160,7 +160,9 @@ const STYLES = `
     color: var(--text-primary-color, #fff);
     border-color: transparent;
   }
-  @container hai-shutter (min-width: 840px) {
+  :host(.is-wide) .list { display: none; }
+  :host(.is-wide) .table-wrap { display: block; }
+  @container hai-shutter (min-width: 640px) {
     .list { display: none; }
     .table-wrap { display: block; }
   }
@@ -175,6 +177,28 @@ class HaiShutterTableCard extends HTMLElement {
     this._built = false;
     this._cardEls = new Map();
     this._tableEls = new Map();
+    this._ro = null;
+  }
+
+  connectedCallback() {
+    this._bindWidth();
+  }
+
+  disconnectedCallback() {
+    this._ro?.disconnect();
+    this._ro = null;
+  }
+
+  _bindWidth() {
+    const apply = () => {
+      const width = this.getBoundingClientRect().width;
+      this.classList.toggle("is-wide", width >= 640);
+    };
+    if (!this._ro) {
+      this._ro = new ResizeObserver(apply);
+      this._ro.observe(this);
+    }
+    apply();
   }
 
   setConfig(config) {
@@ -207,7 +231,22 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   _lang() {
-    return (this._hass?.language || "en").startsWith("he") ? "he" : "en";
+    const forced = String(this._config.language || "").toLowerCase();
+    if (forced.startsWith("en")) return "en";
+    if (forced.startsWith("he")) return "he";
+    const candidates = [
+      this._hass?.locale?.language,
+      this._hass?.language,
+      this._hass?.selectedLanguage,
+      document.documentElement.lang,
+    ];
+    for (const value of candidates) {
+      if (!value) continue;
+      if (String(value).toLowerCase().replace("_", "-").startsWith("he")) {
+        return "he";
+      }
+    }
+    return "he";
   }
 
   _t(key) {
@@ -356,6 +395,7 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   _ensureShell() {
+    this._bindWidth();
     const root = this._root();
     if (this._built) return;
     const fieldHeaders = FIELDS.map(
