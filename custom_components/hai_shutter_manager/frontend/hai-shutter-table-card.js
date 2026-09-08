@@ -72,9 +72,12 @@ const I18N = {
 const STYLES = `
   :host {
     display: block;
+    width: 100%;
+    max-width: none;
     container-type: inline-size;
     container-name: hai-shutter;
   }
+  ha-card { width: 100%; box-sizing: border-box; }
   .wrap { padding: 4px 12px 16px; }
   .test-banner {
     background: var(--warning-color, #f9a825);
@@ -200,8 +203,21 @@ class HaiShutterTableCard extends HTMLElement {
     return Math.max(3, 2 + n);
   }
 
+  getGridOptions() {
+    return HaiShutterTableCard.getGridOptions();
+  }
+
+  static getGridOptions() {
+    return {
+      columns: "full",
+      min_columns: 6,
+    };
+  }
+
   static getStubConfig() {
-    return {};
+    return {
+      grid_options: { columns: "full" },
+    };
   }
 
   _lang() {

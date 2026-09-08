@@ -52,7 +52,7 @@ class ClassifyResourcesTests(unittest.TestCase):
             frontend.card_url(),
             "/hai-shutter-manager/hai-shutter-table-card.js",
         )
-        self.assertTrue(frontend.versioned_url().endswith("?v=0.6.8"))
+        self.assertTrue(frontend.versioned_url().endswith("?v=0.6.9"))
 
     def test_splits_ours_and_legacy_copies(self) -> None:
         ours, legacy = frontend.classify_resources(
@@ -234,6 +234,8 @@ class CardFileTests(unittest.TestCase):
         self.assertIn('btn.textContent = on ? "V" : "X"', source)
         self.assertIn("close_evening_short", source)
         self.assertIn("return \"he\"", source)
+        self.assertIn('columns: "full"', source)
+        self.assertIn("getGridOptions", source)
 
 
 if __name__ == "__main__":

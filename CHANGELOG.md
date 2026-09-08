@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9] - 2026-09-08
+
+### Fixed
+- **Card asks Lovelace for full section width** — in a Sections dashboard
+  the table no longer defaults to a narrow centered column with a sideways
+  scrollbar. After update, if it is still narrow: edit the dashboard and
+  stretch the **section** (New section) to the full number of columns.
+
 ## [0.6.8] - 2026-09-08
 
 ### Fixed

@@ -55,7 +55,13 @@ add this:
 
 ```yaml
 type: custom:hai-shutter-table-card
+grid_options:
+  columns: full
 ```
+
+In a Sections dashboard, also stretch the **section** to all columns
+(edit dashboard → drag the section wider). The card can only fill its
+section, not the empty space beside it.
 
 If you previously copied the file to `www/` or added `/local/...` /
 `/hacsfiles/...` as a resource, you can remove that old resource.
