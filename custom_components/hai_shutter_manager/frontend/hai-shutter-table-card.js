@@ -1,9 +1,10 @@
 /**
  * HAI Shutter Manager dashboard card.
  *
- * One block per shutter, wrapping fields (no horizontal table). Updates in
- * place so Home Assistant state ticks do not reset scroll, close dropdowns,
- * or wipe values being edited.
+ * Desktop (viewport ≥ 768px): one table for all shutters.
+ * Phone (viewport under 768px): one wrapping block per shutter.
+ * Updates in place so Home Assistant state ticks do not reset scroll,
+ * close dropdowns, or wipe values being edited.
  */
 
 const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -24,6 +25,8 @@ const I18N = {
     title: "Shutter Manager",
     empty: "No managed shutters found. Add some via the integration options.",
     test: "TEST MODE — virtual shutters only, detailed logs to Telegram",
+    shutter: "Shutter",
+    state: "State",
     open: "open",
     closed: "closed",
     unavailable: "unavailable",
@@ -36,11 +39,17 @@ const I18N = {
     eave_length: "Eave cm",
     action_delay_hours: "Delay h",
     enabled: "Active",
+    close_evening_short: "Evening",
+    open_morning_short: "Morning",
+    close_rain_short: "Rain",
+    enabled_short: "Active",
   },
   he: {
     title: "מנהל תריסים",
     empty: "לא נמצאו תריסים מנוהלים. הוסף אותם בהגדרות האינטגרציה.",
     test: "מצב בדיקות — תריסים וירטואליים בלבד, לוג מפורט לטלגרם",
+    shutter: "תריס",
+    state: "מצב",
     open: "פתוח",
     closed: "סגור",
     unavailable: "לא זמין",
@@ -53,11 +62,19 @@ const I18N = {
     eave_length: "גגון ס״מ",
     action_delay_hours: "השהיה ש׳",
     enabled: "פעיל",
+    close_evening_short: "ערב",
+    open_morning_short: "בוקר",
+    close_rain_short: "גשם",
+    enabled_short: "פעיל",
   },
 };
 
 const STYLES = `
-  :host { display: block; }
+  :host {
+    display: block;
+    container-type: inline-size;
+    container-name: hai-shutter;
+  }
   .wrap { padding: 4px 12px 16px; }
   .test-banner {
     background: var(--warning-color, #f9a825);
@@ -68,7 +85,19 @@ const STYLES = `
     font-weight: 600;
   }
   .empty { padding: 12px; color: var(--secondary-text-color); }
-  .list { display: flex; flex-direction: column; gap: 8px; }
+  .list { display: none; flex-direction: column; gap: 8px; }
+  .table-wrap { display: block; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td {
+    border-bottom: 1px solid var(--divider-color, #e0e0e0);
+    padding: 6px 6px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  th { color: var(--secondary-text-color); font-weight: 600; }
+  td.name-cell { text-align: start; min-width: 7em; white-space: normal; }
+  .table-wrap.no-virtual .virtual-col { display: none; }
   .shutter {
     border: 1px solid var(--divider-color, #e0e0e0);
     border-radius: 8px;
@@ -88,7 +117,7 @@ const STYLES = `
   .state.closed { color: var(--secondary-text-color); }
   .state.unavailable { color: var(--error-color, #c62828); font-weight: 600; }
   .virtual { font-style: italic; color: var(--primary-color); }
-  .reason { width: 100%; font-size: 12px; color: var(--secondary-text-color); }
+  .reason { width: 100%; font-size: 12px; color: var(--secondary-text-color); font-weight: 400; }
   .fields {
     display: flex;
     flex-wrap: wrap;
@@ -97,32 +126,41 @@ const STYLES = `
     align-items: center;
   }
   .field { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  td.field { display: table-cell; }
   .field label { color: var(--secondary-text-color); white-space: nowrap; }
   select.sel, input.num {
-    color: var(--primary-text-color);
-    background: var(--input-fill-color, var(--secondary-background-color, #eee));
-    border: 1px solid var(--divider-color, #ccc);
+    color: var(--primary-text-color, #111);
+    background: var(--input-fill-color, var(--secondary-background-color, #fff));
+    border: 1px solid var(--divider-color, #888);
     border-radius: 4px;
     padding: 4px 6px;
     font: inherit;
   }
   input.num { width: 4.5em; text-align: center; }
+  select.sel { min-width: 4.2em; }
   button.tog {
     cursor: pointer;
     border: 1px solid var(--divider-color, #ccc);
     border-radius: 16px;
-    padding: 4px 10px;
+    min-width: 2.1em;
+    padding: 4px 8px;
     font: inherit;
     font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
     color: var(--primary-text-color);
     background: var(--secondary-background-color, transparent);
     user-select: none;
+    white-space: nowrap;
   }
   button.tog.on {
     background: var(--primary-color, #03a9f4);
     color: var(--text-primary-color, #fff);
     border-color: transparent;
-    font-weight: 600;
+  }
+  @media (max-width: 767px) {
+    .list { display: flex; }
+    .table-wrap { display: none; }
   }
 `;
 
@@ -133,7 +171,8 @@ class HaiShutterTableCard extends HTMLElement {
     this._config = {};
     this._pending = new Map();
     this._built = false;
-    this._rowEls = new Map();
+    this._cardEls = new Map();
+    this._tableEls = new Map();
   }
 
   setConfig(config) {
@@ -144,7 +183,8 @@ class HaiShutterTableCard extends HTMLElement {
     this._config = config;
     if (this._built) {
       this._built = false;
-      this._rowEls.clear();
+      this._cardEls.clear();
+      this._tableEls.clear();
       this._root().innerHTML = "";
       if (this._hass) this._sync();
     }
@@ -156,15 +196,35 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   getCardSize() {
-    return Math.max(3, 2 + this._rows().length * 2);
+    const n = this._rows().length;
+    return Math.max(3, 2 + n);
   }
 
   static getStubConfig() {
     return {};
   }
 
+  _lang() {
+    const forced = String(this._config.language || "").toLowerCase();
+    if (forced.startsWith("en")) return "en";
+    if (forced.startsWith("he")) return "he";
+    const candidates = [
+      this._hass?.locale?.language,
+      this._hass?.language,
+      this._hass?.selectedLanguage,
+      document.documentElement.lang,
+    ];
+    for (const value of candidates) {
+      if (!value) continue;
+      if (String(value).toLowerCase().replace("_", "-").startsWith("he")) {
+        return "he";
+      }
+    }
+    return "he";
+  }
+
   _t(key) {
-    const lang = (this._hass?.language || "en").startsWith("he") ? "he" : "en";
+    const lang = this._lang();
     return I18N[lang][key] || I18N.en[key] || key;
   }
 
@@ -262,33 +322,13 @@ class HaiShutterTableCard extends HTMLElement {
     return Boolean(active && (active === el || el.contains(active)));
   }
 
-  _ensureShell() {
-    const root = this._root();
-    if (this._built) return;
-    root.innerHTML = `
-      <ha-card>
-        <div class="wrap">
-          <div class="test-banner" hidden></div>
-          <div class="empty" hidden></div>
-          <div class="list"></div>
-        </div>
-      </ha-card>
-      <style>${STYLES}</style>
-    `;
-    const card = root.querySelector("ha-card");
-    card.header = this._config.title || this._t("title");
-    this._banner = root.querySelector(".test-banner");
-    this._empty = root.querySelector(".empty");
-    this._list = root.querySelector(".list");
-    this._card = card;
-    this._built = true;
-    this._rowEls.clear();
-  }
-
-  _rowTemplate(coverId) {
-    const fields = FIELDS.map((field) => {
+  _fieldControlsHtml() {
+    return FIELDS.map((field) => {
       if (field.type === "bool") {
-        return `<button type="button" class="tog" data-key="${field.key}"></button>`;
+        return `<div class="field" data-key="${field.key}">
+          <label></label>
+          <button type="button" class="tog" data-key="${field.key}"></button>
+        </div>`;
       }
       if (field.type === "number") {
         return `<div class="field" data-key="${field.key}">
@@ -304,7 +344,74 @@ class HaiShutterTableCard extends HTMLElement {
         <select class="sel" data-key="${field.key}">${opts}</select>
       </div>`;
     }).join("");
+  }
 
+  _bindControls(el, coverId) {
+    el.querySelectorAll("button.tog").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const next = btn.dataset.val !== "true";
+        this._callSet(coverId, btn.dataset.key, next);
+        this._paintBools(coverId, btn.dataset.key, next);
+      });
+    });
+    el.querySelectorAll("input.num").forEach((input) => {
+      input.addEventListener("change", () => {
+        this._callSet(coverId, input.dataset.key, input.value);
+        this._paintField(coverId, input.dataset.key, input.value);
+      });
+    });
+    el.querySelectorAll("select.sel").forEach((select) => {
+      select.addEventListener("change", () => {
+        this._callSet(coverId, select.dataset.key, select.value);
+        this._paintField(coverId, select.dataset.key, select.value);
+      });
+    });
+  }
+
+  _ensureShell() {
+    const root = this._root();
+    if (this._built) return;
+    const fieldHeaders = FIELDS.map(
+      (field) => `<th data-key="${field.key}"></th>`
+    ).join("");
+    root.innerHTML = `
+      <ha-card>
+        <div class="wrap">
+          <div class="test-banner" hidden></div>
+          <div class="empty" hidden></div>
+          <div class="list"></div>
+          <div class="table-wrap no-virtual">
+            <table>
+              <thead>
+                <tr>
+                  <th class="name-cell" data-key="shutter"></th>
+                  <th data-key="state"></th>
+                  <th class="virtual-col" data-key="virtual"></th>
+                  ${fieldHeaders}
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </ha-card>
+      <style>${STYLES}</style>
+    `;
+    const card = root.querySelector("ha-card");
+    card.header = this._config.title || this._t("title");
+    this._banner = root.querySelector(".test-banner");
+    this._empty = root.querySelector(".empty");
+    this._list = root.querySelector(".list");
+    this._tableWrap = root.querySelector(".table-wrap");
+    this._thead = root.querySelector("thead");
+    this._tbody = root.querySelector("tbody");
+    this._card = card;
+    this._built = true;
+    this._cardEls.clear();
+    this._tableEls.clear();
+  }
+
+  _cardTemplate(coverId) {
     const el = document.createElement("div");
     el.className = "shutter";
     el.dataset.cover = coverId;
@@ -317,86 +424,142 @@ class HaiShutterTableCard extends HTMLElement {
         </div>
         <div class="reason" hidden></div>
       </div>
-      <div class="fields">${fields}</div>
+      <div class="fields">${this._fieldControlsHtml()}</div>
     `;
-
-    el.querySelectorAll("button.tog").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const next = btn.dataset.val !== "true";
-        this._callSet(coverId, btn.dataset.key, next);
-        this._paintBool(btn, next);
-      });
-    });
-    el.querySelectorAll("input.num").forEach((input) => {
-      input.addEventListener("change", () => {
-        this._callSet(coverId, input.dataset.key, input.value);
-      });
-    });
-    el.querySelectorAll("select.sel").forEach((select) => {
-      select.addEventListener("change", () => {
-        this._callSet(coverId, select.dataset.key, select.value);
-      });
-    });
+    this._bindControls(el, coverId);
     return el;
   }
 
-  _paintBool(btn, on) {
-    btn.dataset.val = on ? "true" : "false";
-    btn.classList.toggle("on", on);
-    btn.textContent = this._t(btn.dataset.key);
+  _tableTemplate(coverId) {
+    const tr = document.createElement("tr");
+    tr.dataset.cover = coverId;
+    const fieldCells = FIELDS.map((field) => {
+      if (field.type === "bool") {
+        return `<td><button type="button" class="tog" data-key="${field.key}"></button></td>`;
+      }
+      if (field.type === "number") {
+        return `<td class="field" data-key="${field.key}">
+          <input class="num" type="number" step="${field.step}" data-key="${field.key}" />
+        </td>`;
+      }
+      const opts = field.options
+        .map((o) => `<option value="${o}">${o}</option>`)
+        .join("");
+      return `<td class="field" data-key="${field.key}">
+        <select class="sel" data-key="${field.key}">${opts}</select>
+      </td>`;
+    }).join("");
+    tr.innerHTML = `
+      <td class="name-cell">
+        <div class="name"></div>
+        <div class="reason" hidden></div>
+      </td>
+      <td><span class="state"></span></td>
+      <td class="virtual-col"><span class="virtual"></span></td>
+      ${fieldCells}
+    `;
+    this._bindControls(tr, coverId);
+    return tr;
   }
 
-  _paintRow(el, row) {
-    el.querySelector(".name").textContent = row.name;
+  _paintBool(btn, on) {
+    const full = this._t(btn.dataset.key);
+    btn.dataset.val = on ? "true" : "false";
+    btn.classList.toggle("on", on);
+    btn.textContent = on ? "V" : "X";
+    btn.title = full;
+    btn.setAttribute("aria-label", full);
+    const label = btn.parentElement?.querySelector("label");
+    if (label) label.textContent = this._t(`${btn.dataset.key}_short`);
+  }
+
+  _eachView(coverId, fn) {
+    const card = this._cardEls.get(coverId);
+    const row = this._tableEls.get(coverId);
+    if (card) fn(card);
+    if (row) fn(row);
+  }
+
+  _paintBools(coverId, key, on) {
+    this._eachView(coverId, (el) => {
+      const btn = el.querySelector(`button.tog[data-key="${key}"]`);
+      if (btn && !this._isBusy(btn)) this._paintBool(btn, on);
+    });
+  }
+
+  _paintField(coverId, key, value) {
+    this._eachView(coverId, (el) => {
+      const field = FIELDS.find((item) => item.key === key);
+      if (!field) return;
+      if (field.type === "bool") {
+        this._paintBools(coverId, key, this._asBool(value));
+        return;
+      }
+      const wrap = el.querySelector(`.field[data-key="${key}"]`);
+      if (!wrap) return;
+      const input = wrap.querySelector("input, select");
+      if (input && !this._isBusy(input) && String(input.value) !== String(value)) {
+        input.value = value;
+      }
+    });
+  }
+
+  _paintStatus(el, row) {
+    const nameEl = el.querySelector(".name");
+    if (nameEl) nameEl.textContent = row.name;
 
     const stateEl = el.querySelector(".state");
-    const badge = !row.available ? "unavailable" : row.open ? "open" : "closed";
-    stateEl.className = `state ${badge}`;
-    stateEl.textContent = this._t(badge);
+    if (stateEl) {
+      const badge = !row.available ? "unavailable" : row.open ? "open" : "closed";
+      stateEl.className = `state ${badge}`;
+      stateEl.textContent = this._t(badge);
+    }
 
     const virtualEl = el.querySelector(".virtual");
-    if (row.testMode && row.virtualState) {
-      virtualEl.hidden = false;
-      virtualEl.textContent = `${this._t("virtual")}: ${row.virtualState}`;
-    } else {
-      virtualEl.hidden = true;
+    if (virtualEl) {
+      if (row.testMode && row.virtualState) {
+        virtualEl.hidden = false;
+        virtualEl.textContent = `${this._t("virtual")}: ${row.virtualState}`;
+      } else {
+        virtualEl.hidden = true;
+        virtualEl.textContent = "";
+      }
     }
 
     const reasonEl = el.querySelector(".reason");
-    if (row.reason) {
-      reasonEl.hidden = false;
-      reasonEl.textContent = row.reason;
-    } else {
-      reasonEl.hidden = true;
+    if (reasonEl) {
+      if (row.reason) {
+        reasonEl.hidden = false;
+        reasonEl.textContent = row.reason;
+      } else {
+        reasonEl.hidden = true;
+      }
     }
+  }
 
+  _paintControls(el, row) {
     for (const field of FIELDS) {
-      const incoming = this._displayValue(
-        row.coverId,
-        field.key,
-        row.values[field.key]
-      );
+      const incoming = this._displayValue(row.coverId, field.key, row.values[field.key]);
       if (field.type === "bool") {
         const btn = el.querySelector(`button.tog[data-key="${field.key}"]`);
         if (btn && !this._isBusy(btn)) this._paintBool(btn, this._asBool(incoming));
         continue;
       }
-      if (field.type === "number") {
-        const wrap = el.querySelector(`.field[data-key="${field.key}"]`);
-        const input = wrap.querySelector("input");
-        wrap.querySelector("label").textContent = this._t(field.key);
-        if (!this._isBusy(input) && String(input.value) !== String(incoming)) {
-          input.value = incoming;
-        }
-        continue;
-      }
       const wrap = el.querySelector(`.field[data-key="${field.key}"]`);
-      const select = wrap.querySelector("select");
-      wrap.querySelector("label").textContent = this._t(field.key);
-      if (!this._isBusy(select) && select.value !== String(incoming)) {
-        select.value = incoming;
+      if (!wrap) continue;
+      const label = wrap.querySelector("label");
+      if (label) label.textContent = this._t(field.key);
+      const input = wrap.querySelector("input, select");
+      if (input && !this._isBusy(input) && String(input.value) !== String(incoming)) {
+        input.value = incoming;
       }
     }
+  }
+
+  _paintHeaders() {
+    this._thead.querySelectorAll("th[data-key]").forEach((th) => {
+      th.textContent = this._t(th.dataset.key);
+    });
   }
 
   _sync() {
@@ -420,7 +583,8 @@ class HaiShutterTableCard extends HTMLElement {
       <style>${STYLES}</style>
     `;
     this._built = false;
-    this._rowEls.clear();
+    this._cardEls.clear();
+    this._tableEls.clear();
     const empty = root.querySelector(".empty");
     if (empty) empty.hidden = false;
     void err;
@@ -428,32 +592,52 @@ class HaiShutterTableCard extends HTMLElement {
 
   _syncUnsafe() {
     this._ensureShell();
+    this._root().querySelector(".wrap").setAttribute("dir", this._lang() === "he" ? "rtl" : "ltr");
     this._card.header = this._config.title || this._t("title");
+    this._paintHeaders();
 
     const overview = this._overviewState();
     const testActive = Boolean(overview?.attributes?.test_mode);
     this._banner.hidden = !testActive;
     this._banner.textContent = this._t("test");
+    this._tableWrap.classList.toggle("no-virtual", !testActive);
 
     const rows = this._rows();
     this._empty.hidden = rows.length > 0;
     this._empty.textContent = this._t("empty");
+    this._list.hidden = rows.length === 0;
+    this._tableWrap.hidden = rows.length === 0;
 
     const seen = new Set();
     for (const row of rows) {
       seen.add(row.coverId);
-      let el = this._rowEls.get(row.coverId);
-      if (!el) {
-        el = this._rowTemplate(row.coverId);
-        this._rowEls.set(row.coverId, el);
-        this._list.appendChild(el);
+      let card = this._cardEls.get(row.coverId);
+      if (!card) {
+        card = this._cardTemplate(row.coverId);
+        this._cardEls.set(row.coverId, card);
+        this._list.appendChild(card);
       }
-      this._paintRow(el, row);
+      let tr = this._tableEls.get(row.coverId);
+      if (!tr) {
+        tr = this._tableTemplate(row.coverId);
+        this._tableEls.set(row.coverId, tr);
+        this._tbody.appendChild(tr);
+      }
+      this._paintStatus(card, row);
+      this._paintStatus(tr, row);
+      this._paintControls(card, row);
+      this._paintControls(tr, row);
     }
-    for (const [coverId, el] of this._rowEls) {
+    for (const [coverId, el] of this._cardEls) {
       if (!seen.has(coverId)) {
         el.remove();
-        this._rowEls.delete(coverId);
+        this._cardEls.delete(coverId);
+      }
+    }
+    for (const [coverId, el] of this._tableEls) {
+      if (!seen.has(coverId)) {
+        el.remove();
+        this._tableEls.delete(coverId);
       }
     }
   }
@@ -468,7 +652,7 @@ if (!window.customCards.some((c) => c.type === "hai-shutter-table-card")) {
   window.customCards.push({
     type: "hai-shutter-table-card",
     name: "HAI Shutter Table Card",
-    description: "Per-shutter settings that wrap and stay editable while HA updates.",
+    description: "Table on wide dashboards, per-shutter cards on phones.",
   });
 }
 

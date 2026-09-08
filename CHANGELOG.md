@@ -4,6 +4,39 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8] - 2026-09-08
+
+### Fixed
+- **Table on the computer, cards on the phone** — layout now follows the
+  *browser window*, not the Lovelace column width. 0.6.7 stayed on cards
+  whenever the dashboard card was narrower than 640px (typical with a
+  sidebar). Desktop default is the table; cards only below 768px.
+
+## [0.6.7] - 2026-09-06
+
+### Fixed
+- **Card language defaults to Hebrew** — the dashboard no longer follows
+  Home Assistant's English UI language, so titles and labels stay עברית
+  unless the card YAML sets `language: en`.
+- **Table appears on a normal desktop column** — layout follows the real
+  card width (640px) via ResizeObserver, not only a container query that
+  often stayed on phone cards inside Lovelace.
+
+## [0.6.6] - 2026-09-06
+
+### Changed
+- **Boolean fields are V / X** — the table cells no longer repeat the full
+  label (the column header already has it). On phone cards a short label
+  sits next to the same mark: ערב / בוקר / גשם / פעיל.
+
+## [0.6.5] - 2026-09-06
+
+### Changed
+- **Dashboard card is responsive** — a comparison table on wide dashboards
+  (card width ≥ 840px), and per-shutter cards on phones or a narrow column.
+  The switch follows the card width, not only the screen, so a half-width
+  section stays on cards.
+
 ## [0.6.4] - 2026-09-06
 
 ### Fixed
