@@ -1,10 +1,8 @@
 /**
  * HAI Shutter Manager dashboard card.
  *
- * Wide layout: one table for all shutters (easy to compare columns).
- * Narrow layout: one wrapping block per shutter (no sideways scroll).
- * The switch is a container query on the card width, so a half-width
- * dashboard column stays on cards even on a desktop monitor.
+ * Desktop (viewport ≥ 768px): one table for all shutters.
+ * Phone (viewport under 768px): one wrapping block per shutter.
  * Updates in place so Home Assistant state ticks do not reset scroll,
  * close dropdowns, or wipe values being edited.
  */
@@ -87,8 +85,8 @@ const STYLES = `
     font-weight: 600;
   }
   .empty { padding: 12px; color: var(--secondary-text-color); }
-  .list { display: flex; flex-direction: column; gap: 8px; }
-  .table-wrap { display: none; overflow-x: auto; }
+  .list { display: none; flex-direction: column; gap: 8px; }
+  .table-wrap { display: block; overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   th, td {
     border-bottom: 1px solid var(--divider-color, #e0e0e0);
@@ -160,11 +158,9 @@ const STYLES = `
     color: var(--text-primary-color, #fff);
     border-color: transparent;
   }
-  :host(.is-wide) .list { display: none; }
-  :host(.is-wide) .table-wrap { display: block; }
-  @container hai-shutter (min-width: 640px) {
-    .list { display: none; }
-    .table-wrap { display: block; }
+  @media (max-width: 767px) {
+    .list { display: flex; }
+    .table-wrap { display: none; }
   }
 `;
 
@@ -177,28 +173,6 @@ class HaiShutterTableCard extends HTMLElement {
     this._built = false;
     this._cardEls = new Map();
     this._tableEls = new Map();
-    this._ro = null;
-  }
-
-  connectedCallback() {
-    this._bindWidth();
-  }
-
-  disconnectedCallback() {
-    this._ro?.disconnect();
-    this._ro = null;
-  }
-
-  _bindWidth() {
-    const apply = () => {
-      const width = this.getBoundingClientRect().width;
-      this.classList.toggle("is-wide", width >= 640);
-    };
-    if (!this._ro) {
-      this._ro = new ResizeObserver(apply);
-      this._ro.observe(this);
-    }
-    apply();
   }
 
   setConfig(config) {
@@ -395,7 +369,6 @@ class HaiShutterTableCard extends HTMLElement {
   }
 
   _ensureShell() {
-    this._bindWidth();
     const root = this._root();
     if (this._built) return;
     const fieldHeaders = FIELDS.map(

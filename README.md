@@ -49,7 +49,7 @@ Copy `custom_components/hai_shutter_manager` into your Home Assistant
 
 The card is registered automatically when the integration starts (storage-mode
 dashboards) or injected as extra JS (YAML resources). On a wide dashboard it
-shows a table; on a phone or a narrow column it shows one card per shutter.
+shows a table (browser window ≥ 768px); on a phone it shows one card per shutter.
 After install or update, restart Home Assistant, refresh the dashboard, and
 add this:
 
