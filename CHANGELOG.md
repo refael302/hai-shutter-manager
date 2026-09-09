@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10] - 2026-09-09
+
+### Fixed
+- **V/X and other settings update immediately** — a click no longer waits
+  for blur + a coordinator refresh. The mark flips on the click, number
+  fields apply while typing, and the backend refreshes as soon as the
+  option is saved.
+
 ## [0.6.9] - 2026-09-08
 
 ### Fixed

@@ -364,17 +364,21 @@ class HaiShutterTableCard extends HTMLElement {
 
   _bindControls(el, coverId) {
     el.querySelectorAll("button.tog").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
         const next = btn.dataset.val !== "true";
         this._callSet(coverId, btn.dataset.key, next);
         this._paintBools(coverId, btn.dataset.key, next);
+        btn.blur();
       });
     });
     el.querySelectorAll("input.num").forEach((input) => {
-      input.addEventListener("change", () => {
+      const commit = () => {
         this._callSet(coverId, input.dataset.key, input.value);
         this._paintField(coverId, input.dataset.key, input.value);
-      });
+      };
+      input.addEventListener("input", commit);
+      input.addEventListener("change", commit);
     });
     el.querySelectorAll("select.sel").forEach((select) => {
       select.addEventListener("change", () => {
@@ -499,7 +503,7 @@ class HaiShutterTableCard extends HTMLElement {
   _paintBools(coverId, key, on) {
     this._eachView(coverId, (el) => {
       const btn = el.querySelector(`button.tog[data-key="${key}"]`);
-      if (btn && !this._isBusy(btn)) this._paintBool(btn, on);
+      if (btn) this._paintBool(btn, on);
     });
   }
 
@@ -558,7 +562,7 @@ class HaiShutterTableCard extends HTMLElement {
       const incoming = this._displayValue(row.coverId, field.key, row.values[field.key]);
       if (field.type === "bool") {
         const btn = el.querySelector(`button.tog[data-key="${field.key}"]`);
-        if (btn && !this._isBusy(btn)) this._paintBool(btn, this._asBool(incoming));
+        if (btn) this._paintBool(btn, this._asBool(incoming));
         continue;
       }
       const wrap = el.querySelector(`.field[data-key="${field.key}"]`);

@@ -350,6 +350,7 @@ class ShutterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             cfg.update(covers.get(cover_id, {}))
             self._covers[cover_id] = cfg
         self.hass.config_entries.async_update_entry(self.entry, options=options)
+        await self.async_request_refresh()
 
     async def async_set_hub_option(self, key: str, value: Any) -> None:
         """Persist a hub-level option (test overrides, etc.)."""
